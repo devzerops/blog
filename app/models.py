@@ -25,10 +25,12 @@ class Post(db.Model):
     author = db.relationship('User', backref=db.backref('posts', lazy='dynamic'))
     
     image_filename = db.Column(db.String(128), nullable=True)
+    alt_text = db.Column(db.String(255), nullable=True) # New field for alt text
     video_embed_url = db.Column(db.String(256), nullable=True)
     tags = db.Column(db.String(200), nullable=True) # Comma-separated tags
     
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    views = db.Column(db.Integer, default=0, nullable=False)
 
     def __repr__(self):
         return f'<Post {self.title}>'

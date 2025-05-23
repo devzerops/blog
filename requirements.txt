@@ -7,3 +7,4 @@ python-dotenv
 markdown
 Flask-WTF
 email_validator
+Pillow

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">{{ title }}</h1>
+
+    {% if posts_data %}
+        {% for post_item in posts_data %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">{{ post_item.title }} (ID: {{ post_item.id }})</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <h6>커버 이미지:</h6>
+                            {% if post_item.cover_image_url %}
+                                <img src="{{ post_item.cover_image_url }}" alt="Cover image for {{ post_item.title }}" class="img-fluid rounded mb-2" style="max-height: 150px; width: auto;">
+                            {% else %}
+                                <p class="text-muted">커버 이미지 없음</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-9">
+                            <h6>본문 내 이미지:</h6>
+                            {% if post_item.inline_image_urls %}
+                                <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-2">
+                                    {% for img_url in post_item.inline_image_urls %}
+                                        <div class="col">
+                                            <div class="card h-100">
+                                                <img src="{{ img_url }}" alt="Inline image" class="card-img-top img-fluid rounded" style="object-fit: cover; height: 100px;">
+                                                <div class="card-footer p-1" style="font-size: 0.7rem; overflow-wrap: break-word;">
+                                                    <small><a href="{{ img_url }}" target="_blank">{{ img_url.split('/')[-1] }}</a></small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted">본문 내 이미지 없음</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>이미지를 포함한 게시글이 없습니다.</p>
+    {% endif %}
+</div>
+{% endblock %}

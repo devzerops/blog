@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 
+{% block title %}{{ post.title }}{% endblock %}
+{% block meta_description %}{{ meta_description if meta_description else post.title }}{% endblock %}
+
 {% block head_extra %}
     <!-- Prism CSS for syntax highlighting -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css" rel="stylesheet" />
@@ -41,6 +44,7 @@
                 {% if post.updated_at and post.updated_at != post.created_at %}
                     | 수정일: {{ post.updated_at.strftime('%Y년 %m월 %d일 %H:%M') }}
                 {% endif %}
+                | 조회수: {{ post.views }}
             </p>
             {% if tags_list %}
                 <div class="mb-3">
@@ -54,7 +58,7 @@
         </header>
 
         {% if image_url %}
-            <img src="{{ image_url }}" class="img-fluid rounded mb-4 shadow-sm" alt="{{ post.title }} cover image" style="max-height: 400px; width: 100%; object-fit: contain;">
+            <img src="{{ image_url }}" class="img-fluid rounded mb-4 shadow-sm" alt="{{ post.alt_text if post.alt_text else post.title }}" style="max-height: 400px; width: 100%; object-fit: contain;">
         {% endif %}
 
         {% if post.video_embed_url %}

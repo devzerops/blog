@@ -1,9 +1,8 @@
 {% extends "base.html" %}
 
 {% block head_extra %}
-    <!-- SimpleMDE or other Markdown editor CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
-    <script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
+    <!-- TinyMCE -->
+    <script src="{{ url_for('static', filename='tinymce/tinymce.min.js') }}" referrerpolicy="origin"></script>
 {% endblock %}
 
 {% block content %}
@@ -26,7 +25,7 @@
 
             <div class="mb-3">
                 {{ form.content.label(class="form-label") }}
-                {{ form.content(class="form-control" + (" is-invalid" if form.content.errors else ""), rows=15, placeholder="Markdown 형식으로 내용을 입력하세요...") }}
+                {{ form.content(class="form-control" + (" is-invalid" if form.content.errors else ""), rows=15, placeholder="Markdown 형식으로 내용을 입력하세요...", id="content", **{'data-autosave-key': (post_id if post_id else 'new')}) }}
                 {% if form.content.errors %}
                     <div class="invalid-feedback">
                         {% for error in form.content.errors %}
@@ -70,6 +69,18 @@
             </div>
 
             <div class="mb-3">
+                {{ form.alt_text.label(class="form-label") }}
+                {{ form.alt_text(class="form-control" + (" is-invalid" if form.alt_text.errors else ""), placeholder="이미지에 대한 설명을 입력하세요 (검색 엔진 및 접근성용)") }}
+                {% if form.alt_text.errors %}
+                    <div class="invalid-feedback">
+                        {% for error in form.alt_text.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
                 {{ form.tags.label(class="form-label") }}
                 {{ form.tags(class="form-control" + (" is-invalid" if form.tags.errors else ""), placeholder="예: python, flask, webdev") }}
                 <div class="form-text">쉼표(,)로 태그를 구분해주세요.</div>
@@ -93,25 +104,90 @@
 
 {% block scripts_extra %}
 <script>
+    // Make the admin token available to JavaScript
+    const ADMIN_TOKEN = "{{ admin_token | default('') }}";
+
     document.addEventListener('DOMContentLoaded', function(){
-        var simplemde = new SimpleMDE({
-            element: document.getElementById("content"),
-            spellChecker: false,
-            autosave: {
-                enabled: true,
-                uniqueId: "SimpleMDE_Content_{{ post_id if post_id else 'new' }}",
-                delay: 1000,
-            },
-            // For image uploads with SimpleMDE, you might need custom handling
-            // or integrate with a service. The current setup uses a separate field for cover image.
-            // For inline images within markdown, you might need to configure imageUploadEndpoint
-            // and related options if SimpleMDE supports it directly or via plugins.
-            // This example uses the `upload_editor_image` endpoint for a generic editor.
-            // SimpleMDE's default image button prompts for a URL.
-            // To enable direct uploads, you'd typically need to customize toolbar or use a plugin.
-            // For now, we rely on the user pasting image URLs or using the cover image field.
-            // imageUploadEndpoint: '{{ url_for("admin.upload_editor_image") }}', // Example if using such feature
-            // imagePathAbsolute: true, // Example
+        const contentElement = document.getElementById('content');
+        const autosaveKey = contentElement.dataset.autosaveKey;    
+        tinymce.init({
+            selector: '#content',
+            skin: 'oxide-dark', // Modern dark skin for the UI
+            content_css: 'dark', // Dark theme for the content area
+            ui_mode: 'split', // Separates menubar and toolbar
+            plugins: 'preview importcss searchreplace autolink autosave save directionality code visualblocks visualchars fullscreen image link media codesample table charmap pagebreak nonbreaking anchor insertdatetime advlist lists wordcount help charmap quickbars emoticons',
+            menubar: 'file edit view insert format tools table help',
+            toolbar: 'undo redo | bold italic underline strikethrough | fontfamily fontsize blocks | alignleft aligncenter alignright alignjustify | outdent indent |  numlist bullist | forecolor backcolor removeformat | pagebreak | charmap emoticons | fullscreen  preview save print | insertfile image media link anchor codesample | ltr rtl',
+            toolbar_sticky: true,
+            autosave_ask_before_unload: true,
+            autosave_interval: '30s',
+            autosave_prefix: 'tinymce-autosave-' + autosaveKey + '-',
+            autosave_restore_when_empty: false,
+            autosave_retention: '2m',
+            image_advtab: true,
+            height: 600,
+            image_caption: true,
+            quickbars_selection_toolbar: 'bold italic | quicklink h2 h3 blockquote quickimage quicktable',
+            noneditable_class: 'mceNonEditable',
+            toolbar_mode: 'sliding',
+            contextmenu: 'link image table',
+            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:16px }',
+            
+            // Image Upload Configuration
+            images_upload_url: '{{ url_for("admin.upload_editor_image") }}', // We'll use images_upload_handler to add token
+            automatic_uploads: false, // We trigger upload manually in handler or let the handler do it
+
+            images_upload_handler: function (blobInfo, success, failure, progress) {
+                var xhr, formData;
+
+                xhr = new XMLHttpRequest();
+                xhr.withCredentials = false; // Important if you're not using cookies for auth
+                xhr.open('POST', '{{ url_for("admin.upload_editor_image") }}');
+                
+                var token = ADMIN_TOKEN;
+                if (!token) {
+                    failure('인증 토큰을 찾을 수 없습니다. 다시 로그인해주세요.');
+                    return;
+                }
+                xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+                // Do not set Content-Type for FormData, browser will do it with boundary
+
+                xhr.upload.onprogress = function (e) {
+                    progress(e.loaded / e.total * 100);
+                };
+
+                xhr.onload = function() {
+                    var json;
+
+                    if (xhr.status < 200 || xhr.status >= 300) {
+                        try {
+                            json = JSON.parse(xhr.responseText);
+                            failure('HTTP Error: ' + xhr.status + ' - ' + (json && json.error && json.error.message ? json.error.message : 'Unknown error'));
+                        } catch (e) {
+                            failure('HTTP Error: ' + xhr.status + '. Invalid JSON response: ' + xhr.responseText);
+                        }
+                        return;
+                    }
+
+                    json = JSON.parse(xhr.responseText);
+
+                    if (!json || typeof json.location != 'string') {
+                        failure('Invalid JSON: ' + xhr.responseText);
+                        return;
+                    }
+
+                    success(json.location);
+                };
+
+                xhr.onerror = function () {
+                    failure('Image upload failed due to a network error or server error. Status: ' + xhr.status);
+                };
+
+                formData = new FormData();
+                formData.append('file', blobInfo.blob(), blobInfo.filename());
+
+                xhr.send(formData);
+            }
         });
     });
 </script>

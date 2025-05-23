@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin/
+Disallow: /static/uploads/ # If you don't want images in UPLOAD_FOLDER to be directly indexed
+
+Sitemap: {{ url_for('public.sitemap', _external=True) if config.SITE_URL else '/sitemap.xml' }}

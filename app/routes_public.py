@@ -1,10 +1,21 @@
-from flask import Blueprint, render_template, request, current_app, abort, url_for
+from flask import Blueprint, render_template, request, current_app, abort, url_for, session, send_from_directory
 from app.models import Post
-import markdown
+from app.database import db # Import db
 from markupsafe import Markup # For rendering HTML content safely
 import os # Added: Import the 'os' module
 
 bp_public = Blueprint('public', __name__)
+
+@bp_public.route('/robots.txt')
+def robots_txt():
+    current_app.logger.info(f"Attempting to serve robots.txt from: {current_app.static_folder}")
+    try:
+        response = send_from_directory(current_app.static_folder, 'robots.txt')
+        current_app.logger.info(f"robots.txt found and sending response: {response.status_code}")
+        return response
+    except Exception as e:
+        current_app.logger.error(f"Error serving robots.txt: {e}")
+        abort(404)
 
 @bp_public.route('/')
 @bp_public.route('/posts')
@@ -37,8 +48,9 @@ def post_list():
             'author_username': post_item.author.username, # Assuming author relationship is eager loaded or accessible
             'tags': post_item.tags, # Pass raw string, template will split
             'image_url': image_url,
-            'summary': Markup(markdown.markdown(post_item.content[:200] + ('...' if len(post_item.content) > 200 else ''), 
-                                             extensions=['fenced_code', 'tables', 'nl2br']))
+            'alt_text': post_item.alt_text if post_item.alt_text else post_item.title, # Add alt_text, fallback to title
+            'summary': Markup(post_item.content), # Display full HTML content for now
+            'views': post_item.views # Add views count
         })
         
     return render_template('post_list.html', title='블로그 게시글', posts=processed_posts, pagination=posts_pagination)
@@ -46,8 +58,23 @@ def post_list():
 @bp_public.route('/posts/<int:post_id>')
 def post_detail(post_id):
     post = Post.query.get_or_404(post_id)
-    html_content = Markup(markdown.markdown(post.content, extensions=['fenced_code', 'codehilite', 'tables', 'nl2br']))
+
+    # View counting logic
+    viewed_posts_session_key = f'viewed_post_{post.id}'
+    if viewed_posts_session_key not in session:
+        post.views += 1
+        session[viewed_posts_session_key] = True
+        db.session.commit()
+
+    html_content = Markup(post.content) # Content is now HTML from TinyMCE
     
+    # Prepare meta description (simple truncation, consider HTML stripping for production)
+    # For TinyMCE content, which is HTML, we need a proper way to get text.
+    # For now, let's assume post.content is the raw HTML and we'll strip it crudely or use a summary if available.
+    # A better approach would be to store a plain text summary or use a library to convert HTML to text.
+    plain_content_for_meta = Markup(post.content).striptags() # Basic stripping
+    meta_description = (plain_content_for_meta[:155] + '...') if len(plain_content_for_meta) > 155 else plain_content_for_meta
+
     image_url = None
     if post.image_filename:
         if 'static/uploads' in current_app.config['UPLOAD_FOLDER']:
@@ -62,7 +89,8 @@ def post_detail(post_id):
                            post=post, 
                            html_content=html_content, 
                            image_url=image_url,
-                           tags_list=tags_list)
+                           tags_list=tags_list,
+                           meta_description=meta_description) # Pass meta_description
 
 @bp_public.route('/tags/<string:tag_name>')
 def posts_by_tag(tag_name):
@@ -86,8 +114,9 @@ def posts_by_tag(tag_name):
             'author_username': post_item.author.username,
             'tags': post_item.tags, # Pass raw string, template will split
             'image_url': image_url,
-            'summary': Markup(markdown.markdown(post_item.content[:200] + ('...' if len(post_item.content) > 200 else ''), 
-                                             extensions=['fenced_code', 'tables', 'nl2br']))
+            'alt_text': post_item.alt_text if post_item.alt_text else post_item.title, # Add alt_text, fallback to title
+            'summary': Markup(post_item.content), # Display full HTML content for now
+            'views': post_item.views # Add views count
         })
 
     return render_template('post_list.html', 
@@ -95,3 +124,7 @@ def posts_by_tag(tag_name):
                            posts=processed_posts, 
                            pagination=posts_pagination, 
                            tag_filter=tag_name)
+
+@bp_public.route('/about')
+def about_page():
+    return render_template('about.html', title='About Us')

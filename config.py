@@ -9,7 +9,12 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         'sqlite:///' + os.path.join(basedir, 'instance', 'blog.sqlite')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD') or 'defaultadminpassword'
     UPLOAD_FOLDER = os.path.join(basedir, 'app', 'static', 'uploads')
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
     POSTS_PER_PAGE = 10
     JWT_EXPIRATION_SECONDS = 3600 # 1 hour
+
+class DevelopmentConfig(Config):
+    # TINYMCE_API_KEY = os.environ.get('TINYMCE_API_KEY') # Removed for self-hosted
+    pass

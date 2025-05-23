@@ -1,6 +1,6 @@
 from flask import (
     Blueprint, render_template, redirect, url_for, 
-    request, flash, current_app, send_from_directory, jsonify
+    request, flash, current_app, send_from_directory, jsonify, session
 )
 from app.auth import token_required
 from app.models import Post # User model not directly used here, but through current_user from token_required
@@ -13,6 +13,8 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, SubmitField, FileField, URLField
 from wtforms.validators import DataRequired, Length, Optional, URL as URLValidator # Renamed to avoid conflict
 from flask_wtf.file import FileAllowed
+import re
+from PIL import Image # Import Pillow Image
 
 bp_admin = Blueprint('admin', __name__)
 
@@ -23,6 +25,7 @@ class PostForm(FlaskForm):
         Optional(), 
         FileAllowed(['jpg', 'jpeg', 'png', 'gif'], '이미지 파일(jpg, jpeg, png, gif)만 업로드 가능합니다!')
     ])
+    alt_text = StringField('이미지 설명 (Alt Text)', validators=[Optional(), Length(max=255)]) # New field
     video_embed_url = URLField('동영상 URL (선택, 예: YouTube)', validators=[Optional(), URLValidator()])
     tags = StringField('태그 (쉼표로 구분, 선택)', validators=[Optional(), Length(max=200)])
     submit = SubmitField('저장') # Changed from '발행' for consistency
@@ -30,6 +33,32 @@ class PostForm(FlaskForm):
 def _allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in current_app.config['ALLOWED_EXTENSIONS']
+
+def optimize_image(image_path, max_width=1200, quality=85):
+    """Optimizes an image by resizing and compressing it."""
+    try:
+        img = Image.open(image_path)
+        img_format = img.format
+
+        # Resize if wider than max_width, maintaining aspect ratio
+        if img.width > max_width:
+            ratio = max_width / float(img.width)
+            new_height = int(float(img.height) * float(ratio))
+            img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
+
+        # Save with optimization
+        if img_format in ['JPEG', 'JPG']:
+            img.save(image_path, format='JPEG', quality=quality, optimize=True)
+        elif img_format == 'PNG':
+            img.save(image_path, format='PNG', optimize=True)
+        else:
+            # For other formats like GIF, just save without specific optimization for now
+            # or convert to a more common format if desired.
+            img.save(image_path, format=img_format)
+        
+        current_app.logger.info(f"Optimized image saved at {image_path}")
+    except Exception as e:
+        current_app.logger.error(f"Error optimizing image {image_path}: {e}")
 
 @bp_admin.route('/dashboard')
 @bp_admin.route('/') # Make dashboard the default for /admin/
@@ -56,6 +85,7 @@ def new_post(current_user):
                 filename = f"{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}_{s_filename}"
                 try:
                     file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+                    optimize_image(os.path.join(current_app.config['UPLOAD_FOLDER'], filename)) # Optimize the saved image
                 except Exception as e:
                     flash(f'이미지 저장 중 오류 발생: {e}', 'danger')
                     current_app.logger.error(f"Image save error: {e}")
@@ -69,6 +99,7 @@ def new_post(current_user):
             content=form.content.data,
             user_id=current_user.id,
             image_filename=filename,
+            alt_text=form.alt_text.data, # Add alt_text
             video_embed_url=form.video_embed_url.data,
             tags=form.tags.data.strip()
         )
@@ -76,7 +107,8 @@ def new_post(current_user):
         db.session.commit()
         flash('새로운 글이 성공적으로 작성되었습니다!', 'success')
         return redirect(url_for('admin.dashboard'))
-    return render_template('edit_post.html', title='새 글 작성', form=form, post_id=None, current_user=current_user)
+    admin_token = session.get('admin_token') # Get token from session
+    return render_template('edit_post.html', title='새 글 작성', form=form, post_id=None, current_user=current_user, admin_token=admin_token)
 
 @bp_admin.route('/post/edit/<int:post_id>', methods=['GET', 'POST'])
 @token_required
@@ -87,6 +119,7 @@ def edit_post(current_user, post_id):
     if form.validate_on_submit():
         post.title = form.title.data
         post.content = form.content.data
+        post.alt_text = form.alt_text.data # Add alt_text
         post.video_embed_url = form.video_embed_url.data
         post.tags = form.tags.data.strip()
         post.updated_at = datetime.now(timezone.utc)
@@ -105,6 +138,7 @@ def edit_post(current_user, post_id):
                 new_filename = f"{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}_{s_filename}"
                 try:
                     file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], new_filename))
+                    optimize_image(os.path.join(current_app.config['UPLOAD_FOLDER'], new_filename)) # Optimize the saved image
                     post.image_filename = new_filename
                 except Exception as e:
                     flash(f'이미지 업데이트 중 오류 발생: {e}', 'danger')
@@ -117,7 +151,8 @@ def edit_post(current_user, post_id):
         return redirect(url_for('admin.dashboard'))
     
     current_image_url = url_for('admin.uploaded_file', filename=post.image_filename) if post.image_filename else None
-    return render_template('edit_post.html', title='글 수정', form=form, post_id=post.id, current_image_url=current_image_url, current_user=current_user)
+    admin_token = session.get('admin_token') # Get token from session
+    return render_template('edit_post.html', title='글 수정', form=form, post_id=post.id, current_image_url=current_image_url, current_user=current_user, admin_token=admin_token)
 
 @bp_admin.route('/post/delete/<int:post_id>', methods=['POST'])
 @token_required
@@ -144,6 +179,41 @@ def uploaded_file(current_user, filename):
     # For now, assuming admin access implies access to all uploaded files for management.
     return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
 
+@bp_admin.route('/image-management')
+@token_required
+def image_management(current_user):
+    posts = Post.query.order_by(Post.created_at.desc()).all()
+    posts_with_images = []
+    for post in posts:
+        cover_image_url = None
+        if post.image_filename:
+            try:
+                cover_image_url = url_for('admin.uploaded_file', filename=post.image_filename, _external=True)
+            except Exception as e:
+                current_app.logger.error(f'Error generating URL for cover image {post.image_filename}: {e}')
+        
+        inline_images = []
+        if post.content:
+            # Regex to find Markdown image links: ![alt text](image_url)
+            matches = re.findall(r'!\[.*?\]\((.*?)\)', post.content) # Corrected regex
+            for url in matches:
+                if url.startswith(('http://', 'https://')):
+                    inline_images.append(url)
+                elif url.startswith('/static/uploads/'):
+                    try:
+                        static_path = url.split('/static/', 1)[-1] 
+                        inline_images.append(url_for('static', filename=static_path, _external=True))
+                    except Exception as e:
+                        current_app.logger.error(f'Error generating URL for static inline image \'{url}\': {e}')
+                # Consider other URL types if necessary
+
+        posts_with_images.append({
+            'id': post.id,
+            'title': post.title,
+            'cover_image_url': cover_image_url,
+            'inline_images': list(set(inline_images)) # Remove duplicates
+        })
+    return render_template('admin_image_management.html', title='이미지 관리', posts_data=posts_with_images, current_user=current_user)
 
 # For rich text editor image uploads (e.g., TinyMCE, CKEditor)
 @bp_admin.route('/upload_editor_image', methods=['POST'])
@@ -160,13 +230,14 @@ def upload_editor_image(current_user):
         unique_filename = f"{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}_{s_filename}"
         try:
             file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename))
+            optimize_image(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)) # Optimize the saved image
             # The URL returned should be accessible by the editor to display the image.
             # If UPLOAD_FOLDER is under static, url_for can generate it.
             # If it's outside static, you'll need a dedicated route like uploaded_file.
             # Assuming UPLOAD_FOLDER is 'app/static/uploads' as per original plan.
             # The 'admin.uploaded_file' route needs to be accessible without token if images are public.
             # For now, let's assume it's okay for admin to see it via this route.
-            image_url = url_for('admin.uploaded_file', filename=unique_filename, _external=True)
+            image_url = url_for('static', filename=f'uploads/{unique_filename}', _external=True)
             return jsonify({'location': image_url})
         except Exception as e:
             current_app.logger.error(f"Editor image upload error: {e}")
