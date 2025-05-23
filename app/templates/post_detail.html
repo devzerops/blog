@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+    <!-- Prism CSS for syntax highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.css" rel="stylesheet" />
+    <style>
+        .post-content img { max-width: 100%; height: auto; border-radius: 0.25rem; margin-bottom: 1rem; }
+        .post-content .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            height: 0;
+            overflow: hidden;
+            max-width: 100%;
+            background: #000;
+            margin-bottom: 1rem;
+        }
+        .post-content .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        /* Ensure pre tags scroll horizontally if content is too wide */
+        .post-content pre[class*="language-"] {
+            overflow-x: auto;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <article class="blog-post">
+        <header class="mb-4">
+            <h1 class="display-5 fw-bold">{{ title }}</h1>
+            <p class="text-muted">
+                작성자: {{ post.author.username }} | 
+                작성일: {{ post.created_at.strftime('%Y년 %m월 %d일 %H:%M') }}
+                {% if post.updated_at and post.updated_at != post.created_at %}
+                    | 수정일: {{ post.updated_at.strftime('%Y년 %m월 %d일 %H:%M') }}
+                {% endif %}
+            </p>
+            {% if tags_list %}
+                <div class="mb-3">
+                    {% for tag in tags_list %}
+                        {% if tag.strip() %}
+                        <a href="{{ url_for('public.posts_by_tag', tag_name=tag.strip()) }}" class="badge bg-info text-dark text-decoration-none me-1">#{{ tag.strip() }}</a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </header>
+
+        {% if image_url %}
+            <img src="{{ image_url }}" class="img-fluid rounded mb-4 shadow-sm" alt="{{ post.title }} cover image" style="max-height: 400px; width: 100%; object-fit: contain;">
+        {% endif %}
+
+        {% if post.video_embed_url %}
+            <div class="video-container mb-4 shadow-sm">
+                {% if 'youtube.com/watch?v=' in post.video_embed_url or 'youtu.be/' in post.video_embed_url %}
+                    {% set video_id = post.video_embed_url.split('v=')[-1].split('&')[0] if 'youtube.com/watch?v=' in post.video_embed_url else post.video_embed_url.split('/')[-1].split('?')[0] %}
+                    <iframe src="https://www.youtube.com/embed/{{ video_id }}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                {% elif 'vimeo.com/' in post.video_embed_url %}
+                    {% set video_id = post.video_embed_url.split('/')[-1].split('?')[0] %}
+                    <iframe src="https://player.vimeo.com/video/{{ video_id }}" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+                {% else %}
+                    <p class="text-warning">지원되지 않는 동영상 URL입니다. YouTube 또는 Vimeo 링크를 사용해주세요.</p>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <div class="post-content lead">
+            {{ html_content|safe }}
+        </div>
+
+        <hr class="my-5">
+
+        <div class="navigation-links">
+            <a href="{{ url_for('public.post_list') }}" class="btn btn-outline-secondary">&laquo; 목록으로 돌아가기</a>
+        </div>
+    </article>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+    <!-- Prism JS for syntax highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+    <script>
+        // Initialize Prism for syntax highlighting
+        // Autoloader will load languages as needed.
+        // Prism.highlightAll(); // Not needed if autoloader is used correctly and for dynamic content.
+        // For dynamically added content, you might need to call Prism.highlightElement(element) or Prism.highlightAllUnder(container)
+        document.addEventListener('DOMContentLoaded', (event) => {
+            // If content is static, this might be enough, or autoloader handles it.
+            // For content loaded via AJAX or dynamically inserted, you would call highlightAll under the specific container.
+        });
+    </script>
+{% endblock %}

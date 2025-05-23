@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
+.venv/
+env/
+.env/
+
+# Instance folder (for SQLite DB, secrets, etc.)
+instance/
+
+# Environment variables
+.env
+
+# IDE / Editor specific
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Uploads directory (if you don't want to version uploaded files)
+app/static/uploads/
+
+# Flask Cache / Assets
+.webassets-cache/
+flask_cache/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Coverage reports
+.coverage
+htmlcov/
+
+# Other temporary files
+*.log
+*.tmp
+*.swp

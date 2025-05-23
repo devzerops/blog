@@ -1,0 +1,347 @@
+/* General Body Styles */
+body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    /* Use Bootstrap CSS variables for easier theme switching */
+    color: var(--bs-body-color);
+    background-color: var(--bs-body-bg);
+    padding-top: 56px; /* Adjust if navbar height changes */
+}
+
+/* Navbar Enhancements */
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+.navbar-dark .navbar-nav .nav-link {
+    color: rgba(255,255,255,.75);
+}
+
+.navbar-dark .navbar-nav .nav-link:hover,
+.navbar-dark .navbar-nav .nav-link:focus {
+    color: rgba(255,255,255,1);
+}
+
+/* Main Content Area */
+.container {
+    max-width: 960px; /* Or your preferred max width */
+}
+
+/* Card Styles for Posts */
+.blog-post-card {
+    transition: transform .2s ease-in-out, box-shadow .2s ease-in-out;
+}
+
+.blog-post-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15) !important;
+}
+
+.card-title a {
+    color: #212529;
+    text-decoration: none;
+}
+
+.card-title a:hover {
+    color: #007bff;
+}
+
+.post-summary {
+    font-size: 0.95rem;
+    color: #495057;
+}
+
+/* Post Detail Page */
+.blog-post header h1 {
+    color: #343a40;
+}
+
+.post-content {
+    font-size: 1.1rem; /* Slightly larger for readability */
+    /* color: #212529; */ /* Will inherit from body or use Bootstrap's default */
+}
+
+.post-content h2, .post-content h3, .post-content h4 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    color: #343a40;
+}
+
+.post-content p {
+    margin-bottom: 1em;
+}
+
+.post-content blockquote {
+    border-left: 4px solid #007bff;
+    padding-left: 1rem;
+    margin-left: 0;
+    font-style: italic;
+    color: #555;
+}
+
+.post-content pre {
+    background-color: #282c34; /* Okaidia theme background for Prism */
+    color: #abb2bf; /* Okaidia theme text color */
+    padding: 1em;
+    border-radius: 0.3rem;
+    overflow-x: auto; /* Ensure horizontal scroll for long lines */
+}
+
+.post-content code:not([class*="language-"]) {
+    background-color: #e9ecef;
+    padding: .2em .4em;
+    margin: 0;
+    font-size: 85%;
+    border-radius: 3px;
+}
+
+/* Footer */
+footer {
+    border-top: 1px solid #e7e7e7;
+    font-size: 0.9em;
+    /* Bootstrap's bg-light will handle background, text color should adapt */
+}
+
+/* Alert Styling */
+.alert {
+    border-radius: .25rem;
+}
+
+/* Forms */
+.form-label {
+    font-weight: 500;
+}
+
+/* SimpleMDE editor enhancements */
+.editor-toolbar {
+    border-top-left-radius: .25rem;
+    border-top-right-radius: .25rem;
+}
+
+.editor-toolbar a {
+    color: var(--bs-dark) !important; /* Black icons for light mode - FORCED */
+}
+
+.editor-toolbar a:hover {
+    color: var(--bs-dark) !important; /* Keep icons black on hover - FORCED */
+    background-color: var(--bs-gray-200); /* Light gray background on hover */
+}
+
+.editor-toolbar a.active {
+    color: var(--bs-dark) !important; /* Keep icons black when active - FORCED */
+    background-color: var(--bs-gray-300); /* Slightly darker gray for active state */
+}
+
+.CodeMirror {
+    border-bottom-left-radius: .25rem;
+    border-bottom-right-radius: .25rem;
+    border: 1px solid #ced4da;
+}
+
+/* Responsive images and videos */
+.post-content img,
+.post-content iframe,
+.post-content video {
+    max-width: 100%;
+    height: auto;
+    display: block; /* Remove extra space below images */
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 0.25rem;
+}
+
+/* Tag badges */
+.badge {
+    font-size: 0.85em;
+    padding: .4em .6em;
+}
+
+/* Pagination */
+.pagination .page-link {
+    color: #007bff;
+}
+.pagination .page-item.active .page-link {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+.pagination .page-item.disabled .page-link {
+    color: #6c757d;
+}
+
+/* PrismJS Toolbar - ensure it's visible and styled */
+/* You might need to adjust z-index if it's hidden behind other elements */
+div.code-toolbar {
+    position: relative;
+}
+
+div.code-toolbar > .toolbar {
+    position: absolute;
+    top: .3em;
+    right: .5em;
+    transition: opacity 0.3s ease-in-out;
+    opacity: 0; /* Hidden by default, shown on hover */
+}
+
+div.code-toolbar:hover > .toolbar {
+    opacity: 1;
+}
+
+div.code-toolbar > .toolbar .toolbar-item > a,
+div.code-toolbar > .toolbar .toolbar-item > button,
+div.code-toolbar > .toolbar .toolbar-item > span {
+    color: #bbb;
+    background: #383e49;
+    padding: 0.3em 0.5em;
+    border-radius: 0.3em;
+    font-size: 0.85em;
+    margin-left: 0.5em;
+    box-shadow: 0 2px 0 0 rgba(0,0,0,0.2);
+    transition: background-color 0.2s ease;
+}
+
+div.code-toolbar > .toolbar .toolbar-item > a:hover,
+div.code-toolbar > .toolbar .toolbar-item > a:focus,
+div.code-toolbar > .toolbar .toolbar-item > button:hover,
+div.code-toolbar > .toolbar .toolbar-item > button:focus,
+div.code-toolbar > .toolbar .toolbar-item > span:hover,
+div.code-toolbar > .toolbar .toolbar-item > span:focus {
+    color: #fff;
+    background-color: #505866;
+    text-decoration: none;
+}
+
+/* Dark Mode Specific Styles */
+[data-bs-theme="dark"] body {
+    color: var(--bs-body-color);
+    background-color: var(--bs-body-bg);
+}
+
+[data-bs-theme="dark"] .card-title a {
+    color: var(--bs-light-text-emphasis); /* A lighter color for links in dark mode */
+}
+
+[data-bs-theme="dark"] .card-title a:hover {
+    color: var(--bs-primary-text-emphasis); /* Brighter primary color on hover */
+}
+
+[data-bs-theme="dark"] .post-summary {
+    color: var(--bs-secondary-color); /* Lighter secondary text */
+}
+
+[data-bs-theme="dark"] .blog-post header h1,
+[data-bs-theme="dark"] .post-content h2,
+[data-bs-theme="dark"] .post-content h3,
+[data-bs-theme="dark"] .post-content h4 {
+    color: var(--bs-heading-color); /* Bootstrap's dark mode heading color */
+}
+
+[data-bs-theme="dark"] .post-content blockquote {
+    border-left-color: var(--bs-primary);
+    color: var(--bs-secondary-color);
+}
+
+[data-bs-theme="dark"] .post-content code:not([class*="language-"]) {
+    background-color: #343a40; /* Darker background for inline code */
+    color: #e9ecef; /* Lighter text for inline code */
+}
+
+[data-bs-theme="dark"] footer {
+    border-top-color: var(--bs-border-color-translucent);
+    /* text-color should be handled by Bootstrap's .text-muted or default body color on .bg-dark */
+}
+
+[data-bs-theme="dark"] .pagination .page-link {
+    background-color: var(--bs-tertiary-bg);
+    border-color: var(--bs-border-color-translucent);
+    color: var(--bs-primary-text-emphasis);
+}
+
+[data-bs-theme="dark"] .pagination .page-item.active .page-link {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: var(--bs-light);
+}
+
+[data-bs-theme="dark"] .pagination .page-item.disabled .page-link {
+    background-color: var(--bs-tertiary-bg);
+    border-color: var(--bs-border-color-translucent);
+    color: var(--bs-secondary-color);
+}
+
+/* Ensure PrismJS toolbar buttons are styled for dark mode if they weren't already dark */
+[data-bs-theme="dark"] div.code-toolbar > .toolbar .toolbar-item > a,
+[data-bs-theme="dark"] div.code-toolbar > .toolbar .toolbar-item > button,
+[data-bs-theme="dark"] div.code-toolbar > .toolbar .toolbar-item > span {
+    color: #ced4da; /* Lighter text for toolbar items */
+    background: #495057; /* Darker background for toolbar items */
+}
+
+[data-bs-theme="dark"] div.code-toolbar > .toolbar .toolbar-item > a:hover,
+[data-bs-theme="dark"] div.code-toolbar > .toolbar .toolbar-item > a:focus,
+[data-bs-theme="dark"] div.code-toolbar > .toolbar .toolbar-item > button:hover,
+[data-bs-theme="dark"] div.code-toolbar > .toolbar .toolbar-item > button:focus,
+[data-bs-theme="dark"] div.code-toolbar > .toolbar .toolbar-item > span:hover,
+[data-bs-theme="dark"] div.code-toolbar > .toolbar .toolbar-item > span:focus {
+    color: #fff;
+    background-color: #5a6268; /* Slightly lighter background on hover/focus */
+}
+
+/* SimpleMDE / CodeMirror Dark Mode Styles */
+[data-bs-theme="dark"] .editor-toolbar {
+    background-color: var(--bs-gray-700); /* A slightly lighter dark for the toolbar */
+    border-color: var(--bs-gray-600);
+}
+
+[data-bs-theme="dark"] .editor-toolbar a {
+    color: var(--bs-light) !important; /* White icons for dark mode - FORCED */
+}
+
+[data-bs-theme="dark"] .editor-toolbar a:hover,
+[data-bs-theme="dark"] .editor-toolbar a.active {
+    background-color: var(--bs-gray-600);
+    color: var(--bs-light) !important; /* Ensure icon color remains light - FORCED */
+}
+
+[data-bs-theme="dark"] .CodeMirror {
+    background-color: var(--bs-gray-800); /* Dark background for editor */
+    color: var(--bs-light);
+    border-color: var(--bs-gray-600);
+}
+
+[data-bs-theme="dark"] .CodeMirror-placeholder {
+    color: var(--bs-gray-500) !important; /* Make placeholder text more visible */
+    opacity: 1 !important; /* Ensure full opacity for placeholder */
+}
+
+[data-bs-theme="dark"] .CodeMirror-cursor {
+    border-left-color: var(--bs-light) !important; /* Ensure cursor is visible */
+}
+
+[data-bs-theme="dark"] .editor-preview,
+[data-bs-theme="dark"] .editor-preview-side {
+    background-color: var(--bs-gray-800); /* Dark background for preview */
+    color: var(--bs-light);
+    border-color: var(--bs-gray-600);
+}
+
+/* Ensure form inputs are also styled consistently if Bootstrap defaults aren't enough */
+[data-bs-theme="dark"] .form-control {
+    background-color: var(--bs-gray-700);
+    color: var(--bs-light);
+    border-color: var(--bs-gray-600);
+}
+
+[data-bs-theme="dark"] .form-control:focus {
+    background-color: var(--bs-gray-700);
+    color: var(--bs-light);
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+[data-bs-theme="dark"] .form-select {
+    background-color: var(--bs-gray-700);
+    color: var(--bs-light);
+    border-color: var(--bs-gray-600);
+}
