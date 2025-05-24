@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}{% block admin_title %}{% endblock %} - Admin{% endblock %}
+
+{# Remove the main site's top navbar from admin pages #}
+{# {% block site_navbar %}{% endblock %} #}
+
+{# Ensure admin area uses fluid container by default #}
+{% block main_container_class %}container-fluid{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Admin Main Content -->
+    <main class="col-12 px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h1 class="h2">{% block admin_page_title %}{% endblock %}</h1>
+        </div>
+        
+        {# Flash messages #}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block admin_content %}{% endblock %}
+    </main>
+</div>
+{% endblock %}
+
+{% block head_extra %}
+{% endblock %}

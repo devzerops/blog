@@ -1,0 +1,87 @@
+{% macro form_field(field, form_type='basic', horizontal_columns=('lg', 2, 8), button_map={}, button_style='primary') %}
+  {% if field.type == 'CSRFTokenField' or field.type == 'HiddenField' %}
+    {{ field() }}
+  {% else %}
+    <div class="form-group {% if field.errors %}has-error{% endif %}
+        {% if form_type == 'horizontal' %}row{% endif %}">
+      {% if form_type == 'horizontal' %}
+        {{ field.label(class="col-%s-%s control-label" % horizontal_columns[:2]) }}
+        <div class="col-%s-%s">
+          {{ field(class='form-control', **kwargs) }}
+          {% if field.errors %}
+            {% for error in field.errors %}
+              <span class="help-block">{{ error }}</span>
+            {% endfor %}
+          {% endif %}
+          {% if field.description %}
+            <p class="help-block">{{ field.description }}</p>
+          {% endif %}
+        </div>
+      {% elif form_type == 'basic' %}
+        {{ field.label(class="form-label") }}
+        {{ field(class='form-control' + (' is-invalid' if field.errors else ''), **kwargs) }}
+        {% if field.errors %}
+          <div class="invalid-feedback">
+            {% for error in field.errors %}
+              <span>{{ error }}</span><br>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% if field.description %}
+          <small class="form-text text-muted">{{ field.description }}</small>
+        {% endif %}
+      {% else %} {# form_type == 'inline' #}
+        {{ field.label(class="sr-only") }}
+        {{ field(class='form-control', placeholder=field.label.text, **kwargs) }}
+        {% if field.errors %}
+          <div class="invalid-feedback">
+            {% for error in field.errors %}
+              <span>{{ error }}</span><br>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endif %}
+    </div>
+  {% endif %}
+{% endmacro %}
+
+{# Render a button (particularly for submit fields) #}
+{% macro render_button(field, class='btn btn-primary') %}
+  <button type="{{ field.type.lower() if field.type else 'submit' }}" class="{{ class }}">{{ field.label.text }}</button>
+{% endmacro %}
+
+{# Render a form with Bootstrap styling #}
+{% macro render_form(form, action_url='', form_type='basic', horizontal_columns=('lg', 2, 8), enctype=None, method='post', extra_classes=None, form_title=None, submit_text='Submit', cancel_url=None, cancel_text='Cancel', button_map={}, button_style='primary') %}
+  {% if form_title %}
+    <h4 class="mb-3">{{ form_title }}</h4>
+  {% endif %}
+  <form method="{{ method }}" action="{{ action_url }}"
+        {% if extra_classes %}class="{{ extra_classes }}"{% endif %}
+        {% if enctype %}enctype="{{ enctype }}"{% endif %}
+        role="form">
+    {{ form.hidden_tag() }}
+    {% for field in form if field.widget.input_type != 'hidden' and not field.flags.hidden %}
+      {% if field.type == 'SubmitField' %}
+        {# Skip rendering submit button here, handle it below #}
+      {% else %}
+        {{ form_field(field, form_type=form_type, horizontal_columns=horizontal_columns) }}
+      {% endif %}
+    {% endfor %}
+
+    {# Render submit button if it exists and no specific button_map is given for it #}
+    {% if form.submit and 'submit' not in button_map %}
+      <button type="submit" class="btn btn-{{ button_style }}">{{ submit_text }}</button>
+    {% endif %}
+
+    {# Render any custom buttons from button_map #}
+    {% for button_name, button_text in button_map.items() %}
+      {% if form[button_name] %}
+        {{ render_button(form[button_name], class='btn btn-' + button_style) }}
+      {% endif %}
+    {% endfor %}
+
+    {% if cancel_url %}
+      <a href="{{ cancel_url }}" class="btn btn-secondary ms-2">{{ cancel_text }}</a>
+    {% endif %}
+  </form>
+{% endmacro %}
