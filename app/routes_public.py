@@ -68,7 +68,8 @@ def post_list():
             'image_url': image_url,
             'alt_text': post_item.alt_text if post_item.alt_text else post_item.title, # Add alt_text, fallback to title
             'summary': Markup(post_item.content), # Display full HTML content for now
-            'views': post_item.views # Add views count
+            'views': post_item.views, # Add views count
+            'comment_count': post_item.comments.count() # Add comment count
         })
         
     return render_template('post_list.html', title=title, posts=processed_posts, pagination=posts_pagination, search_query=search_query)
@@ -165,7 +166,8 @@ def posts_by_tag(tag_name):
             'image_url': image_url,
             'alt_text': post_item.alt_text if post_item.alt_text else post_item.title, 
             'summary': Markup(post_item.content), 
-            'views': post_item.views
+            'views': post_item.views,
+            'comment_count': post_item.comments.count() # Add comment count
         })
 
     return render_template('post_list.html', 
