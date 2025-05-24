@@ -34,6 +34,7 @@ class Post(db.Model):
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     comments = db.relationship('Comment', backref='post', lazy='dynamic', cascade='all, delete-orphan')
     tags = db.Column(db.String(255), nullable=True) 
+    slug = db.Column(db.String(250), unique=True, nullable=True, index=True) 
 
     def __repr__(self):
         return f'<Post {self.title[:50]}...>'

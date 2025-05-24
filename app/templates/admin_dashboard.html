@@ -10,7 +10,20 @@
 
 <a href="{{ url_for('admin.new_post') }}" class="btn btn-success mb-3">새 글 작성</a>
 <a href="{{ url_for('admin.export_content') }}" class="btn btn-info mb-3 ms-2">콘텐츠 내보내기 (JSON)</a>
-<a href="{{ url_for('admin.export_all_content') }}" class="btn btn-secondary mb-3 ms-2">사이트 전체 콘텐츠 내보내기 (JSON)</a>
+<a href="{{ url_for('admin.export_all_content') }}" class="btn btn-secondary mb-3 ms-2">사이트 전체 콘텐츠 내보내기 (JSON+이미지 ZIP)</a>
+
+<hr>
+<h4>콘텐츠 복원</h4>
+<form method="POST" action="{{ url_for('admin.import_all_content') }}" enctype="multipart/form-data" class="mb-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <div class="form-group">
+        <label for="backup_file">백업 파일 (ZIP):</label>
+        <input type="file" class="form-control-file" id="backup_file" name="backup_file" accept=".zip" required>
+    </div>
+    <button type="submit" class="btn btn-warning">콘텐츠 복원 시작</button>
+</form>
+
+<h3 class="mt-4">게시물 목록</h3>
 
 {% if posts %}
 <div class="table-responsive">
