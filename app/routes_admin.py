@@ -1,10 +1,10 @@
 from flask import (
     Blueprint, render_template, redirect, url_for, 
-    request, flash, current_app, send_from_directory, jsonify, session
+    request, flash, current_app, send_from_directory, jsonify, session, Response
 )
 from app.auth import token_required
-from app.models import Post, User, Tag # Added Tag
-from app.forms import PostForm, SettingsForm, TagForm # Added TagForm
+from app.models import Post, User, Comment # Removed Tag
+from app.forms import PostForm, SettingsForm, DeleteForm # Removed TagForm
 from app.database import db
 from werkzeug.utils import secure_filename
 import os
@@ -16,6 +16,7 @@ from wtforms.validators import DataRequired, Length, Optional, URL as URLValidat
 from flask_wtf.file import FileAllowed
 import re
 from PIL import Image # Import Pillow Image
+# from slugify import slugify # Removed slugify as it's no longer used
 
 bp_admin = Blueprint('admin', __name__)
 
@@ -28,7 +29,8 @@ class PostForm(FlaskForm):
     ])
     alt_text = StringField('이미지 설명 (Alt Text)', validators=[Optional(), Length(max=255)]) # New field
     video_embed_url = URLField('동영상 URL (선택, 예: YouTube)', validators=[Optional(), URLValidator()])
-    tags = StringField('태그 (쉼표로 구분, 선택)', validators=[Optional(), Length(max=200)])
+    meta_description = StringField('메타 설명 (선택)', validators=[Optional(), Length(max=255)]) # New field
+    tags = StringField('태그 (쉼표로 구분)')
     submit = SubmitField('저장') # Changed from '발행' for consistency
 
 def _allowed_file(filename):
@@ -60,21 +62,6 @@ def optimize_image(image_path, max_width=1200, quality=85):
         current_app.logger.info(f"Optimized image saved at {image_path}")
     except Exception as e:
         current_app.logger.error(f"Error optimizing image {image_path}: {e}")
-
-# Helper function to process tags
-def _process_tags(tags_string):
-    processed_tags = []
-    if tags_string:
-        tag_names = [name.strip() for name in tags_string.split(',') if name.strip()]
-        for name in tag_names:
-            tag = Tag.query.filter(db.func.lower(Tag.name) == db.func.lower(name)).first()
-            if not tag:
-                tag = Tag(name=name)
-                db.session.add(tag)
-                # We might want to commit here or let the main post commit handle it.
-                # For simplicity, let's assume the main commit will handle it.
-            processed_tags.append(tag)
-    return processed_tags
 
 @bp_admin.route('/dashboard')
 @bp_admin.route('/') # Make dashboard the default for /admin/
@@ -122,15 +109,14 @@ def new_post(current_user):
             title=form.title.data,
             content=form.content.data,
             user_id=current_user.id,
-            image_filename=filename,
+            image_filename=filename if filename else None,
             alt_text=form.alt_text.data,
             video_embed_url=form.video_embed_url.data,
+            meta_description=form.meta_description.data,
             is_published=is_currently_published,
-            published_at=current_published_at
+            published_at=current_published_at,
+            tags=form.tags.data
         )
-
-        processed_tags_list = _process_tags(form.tags.data)
-        post.tags = processed_tags_list
 
         db.session.add(post)
         db.session.commit()
@@ -145,16 +131,23 @@ def new_post(current_user):
 def edit_post(current_user, post_id):
     post = Post.query.filter_by(id=post_id, user_id=current_user.id).first_or_404()
     form = PostForm(obj=post) # Pre-populate form
-    # Pre-fill tags field for editing
     if request.method == 'GET':
-        form.tags.data = ', '.join([tag.name for tag in post.tags])
+        form.title.data = post.title
+        form.content.data = post.content
+        form.is_published.data = post.is_published
+        form.meta_description.data = post.meta_description
+        form.alt_text.data = post.alt_text
+        form.video_embed_url.data = post.video_embed_url
+        form.tags.data = post.tags # Populate tags field
 
     if form.validate_on_submit():
         post.title = form.title.data
         post.content = form.content.data
         post.alt_text = form.alt_text.data
         post.video_embed_url = form.video_embed_url.data
+        post.meta_description = form.meta_description.data
         post.updated_at = datetime.now(timezone.utc)
+        post.tags = form.tags.data # Save tags string directly
 
         # Determine if publishing or saving as draft
         if 'publish' in request.form:
@@ -167,10 +160,6 @@ def edit_post(current_user, post_id):
                 post.published_at = None # Clear published_at if it's now a draft
             post.is_published = False
             flash_message = '글이 임시 저장되었습니다.'
-
-        post.tags.clear()
-        processed_tags_list = _process_tags(form.tags.data)
-        post.tags = processed_tags_list
 
         if form.image.data:
             file = form.image.data
@@ -185,7 +174,7 @@ def edit_post(current_user, post_id):
                 new_filename = f"{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}_{s_filename}"
                 try:
                     file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], new_filename))
-                    optimize_image(os.path.join(current_app.config['UPLOAD_FOLDER'], new_filename))
+                    optimize_image(os.path.join(current_app.config['UPLOAD_FOLDER'], new_filename)) # Optimize the saved image
                     post.image_filename = new_filename
                 except Exception as e:
                     flash(f'이미지 업데이트 중 오류 발생: {e}', 'danger')
@@ -258,55 +247,70 @@ def upload_editor_image(current_user):
     else:
         return jsonify({'error': {'message': 'File type not allowed'}}), 400
 
-# Tag Management Routes
-@bp_admin.route('/tags', methods=['GET'])
+# Content Export Route
+@bp_admin.route('/export_content', methods=['GET'])
 @token_required
-def list_tags(current_user):
-    tags = Tag.query.order_by(Tag.name).all()
-    return render_template('admin_tags_list.html', title='태그 관리', tags=tags, current_user=current_user)
+def export_content(current_user):
+    try:
+        export_data = {
+            "meta": {
+                "exported_at": datetime.now(timezone.utc).isoformat(),
+                "export_format_version": "1.0"
+            },
+            "data": {
+                "posts": []
+            }
+        }
 
-@bp_admin.route('/tags/new', methods=['GET', 'POST'])
-@token_required
-def new_tag(current_user):
-    form = TagForm()
-    if form.validate_on_submit():
-        tag_name = form.name.data.strip()
-        existing_tag = Tag.query.filter(db.func.lower(Tag.name) == db.func.lower(tag_name)).first()
-        if existing_tag:
-            flash('이미 존재하는 태그입니다.', 'warning')
-        else:
-            tag = Tag(name=tag_name)
-            db.session.add(tag)
-            db.session.commit()
-            flash('새로운 태그가 추가되었습니다.', 'success')
-            return redirect(url_for('admin.list_tags'))
-    return render_template('admin_tag_form.html', title='새 태그 추가', form=form, current_user=current_user)
+        posts = Post.query.order_by(Post.created_at.asc()).all()
 
-@bp_admin.route('/tags/<int:tag_id>/edit', methods=['GET', 'POST'])
+        for post_item in posts:
+            post_dict = {
+                "title": post_item.title,
+                "content": post_item.content,
+                "created_at": post_item.created_at.isoformat() if post_item.created_at else None,
+                "updated_at": post_item.updated_at.isoformat() if post_item.updated_at else None,
+                "is_published": post_item.is_published,
+                "image_filename": post_item.image_filename,
+                "alt_text": post_item.alt_text,
+                "meta_description": post_item.meta_description if post_item.meta_description else "", # Handle None meta_description
+                "views": post_item.views,
+                "author_username": post_item.author.username if post_item.author else None,
+                "comments": []
+            }
+
+            comments = Comment.query.filter_by(post_id=post_item.id).order_by(Comment.created_at.asc()).all()
+            for comment_item in comments:
+                post_dict["comments"].append({
+                    "nickname": comment_item.nickname,
+                    "content": comment_item.content,
+                    "created_at": comment_item.created_at.isoformat() if comment_item.created_at else None
+                })
+            
+            export_data["data"]["posts"].append(post_dict)
+
+        export_json = jsonify(export_data).get_data(as_text=True)
+        
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        filename = f"blog_export_{timestamp}.json"
+
+        return Response(
+            export_json,
+            mimetype="application/json",
+            headers={"Content-Disposition": f"attachment;filename={filename}"}
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Error during content export: {e}")
+        flash('콘텐츠를 내보내는 중 오류가 발생했습니다.', 'danger')
+        return redirect(url_for('admin.dashboard'))
+
+@bp_admin.route('/settings', methods=['GET', 'POST'])
 @token_required
-def edit_tag(current_user, tag_id):
-    tag = Tag.query.get_or_404(tag_id)
-    form = TagForm(obj=tag)
+def settings(current_user_from_token):
+    form = SettingsForm(obj=current_user_from_token)
     if form.validate_on_submit():
-        new_name = form.name.data.strip()
-        if new_name.lower() != tag.name.lower(): # Check if name actually changed
-            existing_tag = Tag.query.filter(db.func.lower(Tag.name) == db.func.lower(new_name)).first()
-            if existing_tag and existing_tag.id != tag_id:
-                flash('이미 존재하는 태그 이름입니다. 다른 이름을 사용해주세요.', 'warning')
-                return render_template('admin_tag_form.html', title='태그 수정', form=form, tag=tag, current_user=current_user)
-        tag.name = new_name
+        form.populate_obj(current_user_from_token)
         db.session.commit()
-        flash('태그가 수정되었습니다.', 'success')
-        return redirect(url_for('admin.list_tags'))
-    return render_template('admin_tag_form.html', title='태그 수정', form=form, tag=tag, current_user=current_user)
-
-@bp_admin.route('/tags/<int:tag_id>/delete', methods=['POST'])
-@token_required
-def delete_tag(current_user, tag_id):
-    tag = Tag.query.get_or_404(tag_id)
-    # For simplicity, we just delete the tag. Associated posts will lose this tag.
-    # If you want to prevent deletion if tag is in use, add checks here.
-    db.session.delete(tag)
-    db.session.commit()
-    flash('태그가 삭제되었습니다.', 'success')
-    return redirect(url_for('admin.list_tags'))
+        flash('관리자 설정이 성공적으로 저장되었습니다.', 'success')
+    return render_template('admin_settings.html', title='관리자 설정', form=form, current_user=current_user_from_token)

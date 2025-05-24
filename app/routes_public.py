@@ -1,8 +1,9 @@
 from flask import Blueprint, render_template, request, current_app, abort, url_for, session, send_from_directory, redirect, flash
 from markupsafe import Markup # Import Markup from markupsafe
-from app.models import Post, Tag, db, User, Comment # Added User, Comment
+from app.models import Post, db, User, Comment # Removed Tag, Added User, Comment
 from app.forms import CommentForm # Import CommentForm
 from app.database import db # Import db
+from app.auth import get_current_user_if_logged_in # Add this import
 import os # Added: Import the 'os' module
 import re  # For regex operations to remove image tags
 
@@ -24,6 +25,7 @@ def robots_txt():
 def post_list():
     page = request.args.get('page', 1, type=int)
     search_query = request.args.get('q', None)
+    tag_name = request.args.get('tag', None)
     
     query_obj = Post.query.filter(Post.is_published == True) # Show only published posts
 
@@ -49,34 +51,36 @@ def post_list():
     for post_item in posts_items:
         image_url = None
         if post_item.image_filename:
-            if 'static/uploads' in current_app.config['UPLOAD_FOLDER']:
-                 # app/static/uploads -> static/uploads/filename
-                relative_upload_path = os.path.join('uploads', post_item.image_filename)
-                image_url = url_for('static', filename=relative_upload_path) 
+            # Check if UPLOAD_FOLDER is an absolute path or relative to static
+            if os.path.isabs(current_app.config['UPLOAD_FOLDER']) and 'static' in current_app.config['UPLOAD_FOLDER']:
+                 # Construct URL relative to static folder if UPLOAD_FOLDER is like /app/static/uploads
+                static_folder_name = os.path.basename(os.path.normpath(current_app.config['UPLOAD_FOLDER'])) #e.g. 'uploads'
+                image_url = url_for('static', filename=f'{static_folder_name}/{post_item.image_filename}')
             else:
-                # If UPLOAD_FOLDER is not directly under static, this needs a dedicated public serving route.
-                # For simplicity, we will assume UPLOAD_FOLDER is 'app/static/uploads'
-                # This was set in config.py as os.path.join(basedir, 'app', 'static', 'uploads')
-                image_url = url_for('static', filename=f'uploads/{post_item.image_filename}')
+                # Fallback or direct URL if not conventionally in static/uploads or using a different setup
+                image_url = url_for('public.uploaded_file', filename=post_item.image_filename)
 
         processed_posts.append({
             'id': post_item.id,
             'title': post_item.title,
             'created_at': post_item.created_at,
-            'author_username': post_item.author.username, # Assuming author relationship is eager loaded or accessible
-            'tags': post_item.tags, # Pass raw string, template will split
+            'author_username': post_item.author.username,
+            'tags': post_item.tags,  # Pass the tags string directly
             'image_url': image_url,
-            'alt_text': post_item.alt_text if post_item.alt_text else post_item.title, # Add alt_text, fallback to title
-            'summary': Markup(post_item.content), # Display full HTML content for now
-            'views': post_item.views, # Add views count
-            'comment_count': post_item.comments.count() # Add comment count
+            'alt_text': post_item.alt_text if post_item.alt_text else post_item.title, 
+            'summary': Markup(post_item.content).striptags()[:200] + ('...' if len(Markup(post_item.content).striptags()) > 200 else ''),
+            'views': post_item.views,  
+            'comment_count': post_item.comments.count()  
         })
         
-    return render_template('post_list.html', title=title, posts=processed_posts, pagination=posts_pagination, search_query=search_query)
+    return render_template('post_list.html', title=title, posts=processed_posts, pagination=posts_pagination, search_query=search_query, tag_filter=tag_name)
 
 @bp_public.route('/posts/<int:post_id>')
 def post_detail(post_id):
-    post = Post.query.filter_by(id=post_id, is_published=True).first_or_404()
+    current_user = get_current_user_if_logged_in() # Use the new function
+
+    # Query post by ID only
+    post = Post.query.get_or_404(post_id)
 
     # View counting logic
     viewed_posts_session_key = f'viewed_post_{post.id}'
@@ -121,7 +125,8 @@ def add_comment(post_id):
         comment = Comment(
             nickname=form.nickname.data,
             content=form.content.data,
-            post_id=post.id
+            post_id=post.id,
+            ip_address=request.remote_addr # Store full IP address
         )
         db.session.add(comment)
         db.session.commit()
@@ -133,49 +138,11 @@ def add_comment(post_id):
                 flash(f"{getattr(form, field).label.text}: {error}", 'danger')
     return redirect(url_for('public.post_detail', post_id=post.id))
 
-@bp_public.route('/tags/<string:tag_name>')
-def posts_by_tag(tag_name):
-    page = request.args.get('page', 1, type=int)
-    
-    # Find the tag object (case-insensitive)
-    tag = Tag.query.filter(db.func.lower(Tag.name) == db.func.lower(tag_name)).first()
-
-    if tag:
-        posts_pagination = Post.query.join(Post.tags).filter(Tag.id == tag.id, Post.is_published == True)\
-                                     .order_by(Post.created_at.desc())\
-                                     .paginate(page=page, per_page=current_app.config.get('POSTS_PER_PAGE', 10), error_out=False)
-    else:
-        # If tag doesn't exist, return an empty pagination object or handle as preferred
-        from flask_sqlalchemy.pagination import Pagination
-        posts_pagination = Pagination(None, page, current_app.config.get('POSTS_PER_PAGE', 10), 0, [])
-
-    posts_items = posts_pagination.items
-
-    processed_posts = []
-    for post_item in posts_items:
-        image_url = None
-        if post_item.image_filename:
-            if 'static/uploads' in current_app.config['UPLOAD_FOLDER']:
-                image_url = url_for('static', filename=f'uploads/{post_item.image_filename}')
-        processed_posts.append({
-            'id': post_item.id,
-            'title': post_item.title,
-            'created_at': post_item.created_at,
-            'author_username': post_item.author.username,
-            'tags': post_item.tags, # This is now a list of Tag objects
-            'image_url': image_url,
-            'alt_text': post_item.alt_text if post_item.alt_text else post_item.title, 
-            'summary': Markup(post_item.content), 
-            'views': post_item.views,
-            'comment_count': post_item.comments.count() # Add comment count
-        })
-
-    return render_template('post_list.html', 
-                           title=f'"{tag_name}" 태그가 포함된 글', 
-                           posts=processed_posts, 
-                           pagination=posts_pagination, 
-                           tag_filter=tag_name)
-
 @bp_public.route('/about')
 def about_page():
-    return render_template('about.html', title='About Us')
+    current_user = get_current_user_if_logged_in() # Use the new function
+    return render_template('about.html', title='소개', current_user=current_user)
+
+@bp_public.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)

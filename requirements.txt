@@ -8,3 +8,4 @@ markdown
 Flask-WTF
 email_validator
 Pillow
+python-slugify

@@ -3,10 +3,6 @@ from wtforms import StringField, SubmitField, PasswordField, TextAreaField, File
 from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError, Optional, URL
 from app.models import User
 
-class TagForm(FlaskForm):
-    name = StringField('태그 이름', validators=[DataRequired(), Length(min=1, max=50)])
-    submit = SubmitField('저장')
-
 class LoginForm(FlaskForm):
     username = StringField('사용자 아이디', validators=[DataRequired(), Length(min=3, max=64)])
     password = PasswordField('비밀번호', validators=[DataRequired()])
@@ -34,12 +30,15 @@ class RegistrationForm(FlaskForm):
     #         raise ValidationError('Please use a different email address.')
 
 class PostForm(FlaskForm):
-    title = StringField('제목', validators=[DataRequired(), Length(max=140)])
+    title = StringField('제목', validators=[DataRequired(), Length(min=1, max=200)])
     content = TextAreaField('내용', validators=[DataRequired()])
     image = FileField('커버 이미지 (선택 사항)')
     alt_text = StringField('이미지 설명 (Alt Text)', validators=[Length(max=200)]) 
     video_embed_url = StringField('동영상 URL (선택 사항)', validators=[Optional(), URL(), Length(max=300)]) 
-    tags = StringField('태그 (쉼표로 구분)', validators=[Length(max=200)]) 
+    tags = StringField('태그 (쉼표로 구분)', validators=[Optional(), Length(max=255)]) 
+    meta_description = TextAreaField('메타 설명 (SEO, 선택 사항)', validators=[Optional(), Length(max=300)]) 
+    is_published = BooleanField('공개 발행', default=True)
+    submit = SubmitField('저장')
 
 class SettingsForm(FlaskForm):
     username = StringField('사용자 아이디', validators=[DataRequired(), Length(min=3, max=64)])
@@ -70,3 +69,6 @@ class CommentForm(FlaskForm):
     nickname = StringField('닉네임', validators=[DataRequired(), Length(min=2, max=100)])
     content = TextAreaField('댓글 내용', validators=[DataRequired(), Length(min=1, max=1000)])
     submit = SubmitField('댓글 달기')
+
+class DeleteForm(FlaskForm):
+    submit = SubmitField('삭제') # This field might not be strictly necessary if button is styled in template

@@ -44,3 +44,18 @@ def create_jwt_token(user_id):
     }
     token = jwt.encode(payload, current_app.config['SECRET_KEY'], algorithm='HS256')
     return token
+
+def get_current_user_if_logged_in():
+    token = session.get('admin_token')
+    if not token:
+        return None
+    try:
+        data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=["HS256"])
+        current_user = User.query.get(data['user_id'])
+        return current_user
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, KeyError):
+        # Token expired, invalid, or user_id not in token payload
+        return None
+    except Exception as e:
+        current_app.logger.error(f"Error decoding token for optional login: {e}")
+        return None

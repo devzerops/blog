@@ -4,10 +4,12 @@ from flask_migrate import Migrate
 from markupsafe import Markup
 from config import Config
 from app.database import db
+from flask_wtf.csrf import CSRFProtect
 import datetime
 import re
 
 migrate = Migrate()
+csrf = CSRFProtect()
 
 def strip_images_filter(html_content):
     if html_content is None:
@@ -20,12 +22,25 @@ def nl2br_filter(s):
         return ''
     return Markup(str(s).replace('\n', '<br>\n'))
 
+def mask_ip_filter(ip_address_str):
+    if not ip_address_str: # Handle None or empty string
+        return "N/A"
+    parts = ip_address_str.split('.')
+    if len(parts) == 4: # IPv4
+        return f"{parts[0]}.{parts[1]}.X.X"
+    elif ':' in ip_address_str: # IPv6 (very basic check, just mask it generally)
+        # For simplicity, just return a generic mask for IPv6 or identify it.
+        # A more robust IPv6 masking might be complex.
+        return "IPv6 Address"
+    return "Invalid IP" # Fallback for unexpected format
+
 def create_app(config_class=Config):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(config_class)
 
     app.jinja_env.filters['strip_images'] = strip_images_filter
     app.jinja_env.filters['nl2br'] = nl2br_filter
+    app.jinja_env.filters['mask_ip'] = mask_ip_filter
 
     try:
         os.makedirs(app.instance_path, exist_ok=True)
@@ -45,6 +60,7 @@ def create_app(config_class=Config):
 
     db.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
 
     from app.routes_auth import bp_auth
     app.register_blueprint(bp_auth, url_prefix='/auth')
