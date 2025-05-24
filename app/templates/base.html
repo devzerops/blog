@@ -108,8 +108,13 @@
                                 <li><a class="dropdown-item" href="{{ url_for('admin.data_restore') }}">콘텐츠 복원</a></li>
                             </ul>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin.dashboard') }}">관리자 대시보드</a>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="adminPageDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                관리자 페이지
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="adminPageDropdown">
+                                <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">게시물 관리</a></li>
+                            </ul>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {{ 'active' if request.endpoint == 'admin.new_post' else '' }}" href="{{ url_for('admin.new_post') }}">새 게시글</a>

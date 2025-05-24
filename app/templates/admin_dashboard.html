@@ -6,27 +6,7 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2>{{ title }}</h2>
-    <p>안녕하세요, {{ current_user.username }}님! 다음은 현재 게시물 목록입니다.</p>
-
-    <div class="mb-3">
-        <a href="{{ url_for('admin.new_post') }}" class="btn btn-success">새 글 작성</a>
-        
-        <div class="btn-group ms-2">
-            <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                데이터 관리
-            </button>
-            <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="{{ url_for('admin.export_all_content') }}">사이트 전체 콘텐츠 내보내기 (JSON+이미지 ZIP)</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{{ url_for('admin.data_restore') }}">콘텐츠 복원</a></li>
-            </ul>
-        </div>
-    </div>
-
-    <hr class="d-none"> 
-
-    <h3 class="mt-4">게시물 목록</h3>
+    <h2> 게시물 관리 대시보드 </h2>
 
     {% if posts %}
     <div class="table-responsive">
