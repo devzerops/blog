@@ -105,8 +105,8 @@ def post_detail(post_id):
         # else: handle non-static UPLOAD_FOLDER serving if necessary
 
     # Comment form and comments list
-    form = CommentForm()
-    comments = post.comments.order_by(Comment.created_at.asc()).all()
+    form = CommentForm() # For submitting new top-level comments
+    comments = Comment.query.filter_by(post_id=post.id, parent_id=None).order_by(Comment.created_at.asc()).all()
 
     return render_template('post_detail.html', 
                            title=post.title, 
@@ -115,18 +115,23 @@ def post_detail(post_id):
                            image_url=image_url,
                            meta_description=meta_description, # Pass meta_description
                            comment_form=form, # Pass comment form
-                           comments=comments) # Pass comments list
+                           comments=comments, # Pass comments list
+                           current_user=current_user)
 
 @bp_public.route('/post/<int:post_id>/comment', methods=['POST'])
 def add_comment(post_id):
     post = Post.query.get_or_404(post_id)
     form = CommentForm()
     if form.validate_on_submit():
+        parent_id = request.form.get('parent_id') # Get parent_id from form data
+        parent_id = int(parent_id) if parent_id else None # Convert to int or None
+
         comment = Comment(
             nickname=form.nickname.data,
             content=form.content.data,
             post_id=post.id,
-            ip_address=request.remote_addr # Store full IP address
+            ip_address=request.remote_addr, # Store full IP address
+            parent_id=parent_id # Set parent_id
         )
         db.session.add(comment)
         db.session.commit()

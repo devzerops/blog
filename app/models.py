@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.database import db # Use the db instance from database.py
+from sqlalchemy import asc
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -44,6 +45,16 @@ class Comment(db.Model):
     created_at = db.Column(db.DateTime, index=True, default=lambda: datetime.now(timezone.utc))
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
     ip_address = db.Column(db.String(45), nullable=True)  # Store full IP (IPv4 or IPv6)
+
+    # For nested comments
+    parent_id = db.Column(db.Integer, db.ForeignKey('comment.id'), nullable=True)
+    replies = db.relationship(
+        'Comment', 
+        backref=db.backref('parent_comment', remote_side='Comment.id'), 
+        lazy='dynamic',
+        cascade='all, delete-orphan', # If a parent comment is deleted, its replies are also deleted
+        order_by='Comment.created_at' # Use string form for self-referential order_by
+    )
 
     def __repr__(self):
         return f'<Comment {self.id} by {self.nickname}>'

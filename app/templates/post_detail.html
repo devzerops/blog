@@ -98,22 +98,49 @@
         <section id="comments" class="my-5">
             <h3 class="mb-4">댓글 ({{ comments|length }})</h3>
 
-            {# Display Existing Comments #}
+            {% macro render_comment_node(comment, post_id, comment_form, wtf) %}
+                <div class="card mb-3 shadow-sm {% if comment.parent_id %}ms-4 mt-2{% endif %}">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ comment.nickname }}</h5>
+                        <p class="card-text">{{ comment.content|nl2br }}</p>
+                        <p class="card-text">
+                            <small class="text-muted">
+                                {{ comment.created_at.strftime('%Y년 %m월 %d일 %H:%M') }} - IP: {{ comment.ip_address | mask_ip }}
+                            </small>
+                            <button class="btn btn-sm btn-link reply-btn" data-comment-id="{{ comment.id }}">Reply</button>
+                        </p>
+
+                        {# Reply form - initially hidden #}
+                        <div id="reply-form-{{ comment.id }}" class="reply-form mt-3" style="display: none;">
+                            <form method="POST" action="{{ url_for('public.add_comment', post_id=post_id) }}" novalidate>
+                                {{ comment_form.hidden_tag() }}
+                                <input type="hidden" name="parent_id" value="{{ comment.id }}">
+                                {{ wtf.form_field(comment_form.nickname, class="form-control mb-2", placeholder="Nickname") }}
+                                {{ wtf.form_field(comment_form.content, class="form-control mb-2", rows=3, placeholder="Write a reply...") }}
+                                <button type="submit" class="btn btn-primary btn-sm mt-2">Submit Reply</button>
+                            </form>
+                        </div>
+
+                        {# Render replies recursively #}
+                        {% if comment.replies %}
+                            {% for reply in comment.replies.all() %}{# .all() because lazy='dynamic' #}
+                                {{ render_comment_node(reply, post_id, comment_form, wtf) }}
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            {% endmacro %}
+
+            {# Display Existing Comments - Updated to use the macro #}
             {% if comments %}
                 {% for comment in comments %}
-                    <div class="card mb-3 shadow-sm">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ comment.nickname }}</h5>
-                            <p class="card-text">{{ comment.content|nl2br }}</p>
-                            <p class="card-text"><small class="text-muted">{{ comment.created_at.strftime('%Y년 %m월 %d일 %H:%M') }} - IP: {{ comment.ip_address | mask_ip }}</small></p>
-                        </div>
-                    </div>
+                    {{ render_comment_node(comment, post.id, comment_form, wtf) }}
                 {% endfor %}
             {% else %}
                 <p>아직 댓글이 없습니다. 첫 댓글을 남겨주세요!</p>
             {% endif %}
 
-            {# Comment Submission Form #}
+            {# Comment Submission Form for TOP-LEVEL comments #}
             <div class="mt-4 pt-4 border-top">
                 <h4>댓글 남기기</h4>
                 <form method="POST" action="{{ url_for('public.add_comment', post_id=post.id) }}" novalidate>
@@ -139,13 +166,35 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
     <script>
-        // Initialize Prism for syntax highlighting
-        // Autoloader will load languages as needed.
-        // Prism.highlightAll(); // Not needed if autoloader is used correctly and for dynamic content.
-        // For dynamically added content, you might need to call Prism.highlightElement(element) or Prism.highlightAllUnder(container)
-        document.addEventListener('DOMContentLoaded', (event) => {
-            // If content is static, this might be enough, or autoloader handles it.
-            // For content loaded via AJAX or dynamically inserted, you would call highlightAll under the specific container.
+        Prism.plugins.toolbar.registerButton('select-code', function (env) {
+            var button = document.createElement('button');
+            button.innerHTML = 'Select Code';
+            button.addEventListener('click', function () {
+                if (document.selection) { // IE
+                    var range = document.body.createTextRange();
+                    range.moveToElementText(env.element);
+                    range.select();
+                } else if (window.getSelection) {
+                    var range = document.createRange();
+                    range.selectNode(env.element);
+                    window.getSelection().removeAllRanges();
+                    window.getSelection().addRange(range);
+                }
+            });
+            return button;
         });
+    </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.reply-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const commentId = this.dataset.commentId;
+                const replyForm = document.getElementById('reply-form-' + commentId);
+                if (replyForm) {
+                    replyForm.style.display = replyForm.style.display === 'none' ? 'block' : 'none';
+                }
+            });
+        });
+    });
     </script>
 {% endblock %}
