@@ -72,3 +72,20 @@ class PageView(db.Model):
 
     def __repr__(self):
         return f'<PageView {self.path} at {self.timestamp}>'
+
+class SiteSetting(db.Model):
+    __tablename__ = 'site_setting' # Explicitly naming the table
+    id = db.Column(db.Integer, primary_key=True)
+    site_title = db.Column(db.String(100), default="My Blog")
+    site_description = db.Column(db.Text, nullable=True)
+    site_domain = db.Column(db.String(255), nullable=True)
+    favicon_filename = db.Column(db.String(255), nullable=True)
+    posts_per_page = db.Column(db.Integer, default=10)
+    admin_email = db.Column(db.String(120), nullable=True)
+    admin_github_url = db.Column(db.String(255), nullable=True)
+    ad_sense_code = db.Column(db.Text, nullable=True)
+    google_analytics_id = db.Column(db.String(50), nullable=True)
+    footer_copyright_text = db.Column(db.String(255), nullable=True, default=" {year} {site_title}. All rights reserved.")
+
+    def __repr__(self):
+        return f'<SiteSetting {self.site_title}>'

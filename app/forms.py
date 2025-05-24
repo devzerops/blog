@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, PasswordField, TextAreaField, FileField, BooleanField
-from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError, Optional, URL
+from wtforms import StringField, SubmitField, PasswordField, TextAreaField, FileField, BooleanField, IntegerField, URLField
+from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError, Optional, URL as URLValidator, NumberRange
+from flask_wtf.file import FileField, FileAllowed
 from app.models import User
 
 class LoginForm(FlaskForm):
@@ -34,7 +35,7 @@ class PostForm(FlaskForm):
     content = TextAreaField('내용', validators=[DataRequired()])
     image = FileField('커버 이미지 (선택 사항)')
     alt_text = StringField('이미지 설명 (Alt Text)', validators=[Length(max=200)]) 
-    video_embed_url = StringField('동영상 URL (선택 사항)', validators=[Optional(), URL(), Length(max=300)]) 
+    video_embed_url = StringField('동영상 URL (선택 사항)', validators=[Optional(), URLValidator(), Length(max=300)]) 
     tags = StringField('태그 (쉼표로 구분)', validators=[Optional(), Length(max=255)]) 
     meta_description = TextAreaField('메타 설명 (SEO, 선택 사항)', validators=[Optional(), Length(max=300)]) 
     is_published = BooleanField('공개 발행', default=True)
@@ -76,3 +77,19 @@ class DeleteForm(FlaskForm):
 class ImportForm(FlaskForm):
     backup_file = FileField('백업 파일 (ZIP)', validators=[DataRequired()])
     submit = SubmitField('콘텐츠 복원 시작')
+
+class SiteSettingsForm(FlaskForm):
+    site_title = StringField('사이트 제목', validators=[Optional(), Length(max=100)], default="My Blog")
+    site_description = TextAreaField('사이트 설명 (메타 태그용)', validators=[Optional(), Length(max=500)])
+    site_domain = URLField('사이트 도메인 (예: https://example.com)', validators=[Optional(), URLValidator(message='유효한 URL을 입력해주세요.')])
+    favicon_file = FileField('파비콘 파일 업로드', validators=[
+        Optional(), 
+        FileAllowed(['ico', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'], '이미지 파일만 업로드 가능합니다! (ico, png, jpg, svg, webp)')
+    ])
+    posts_per_page = IntegerField('페이지 당 게시물 수', validators=[Optional(), NumberRange(min=1, max=100)], default=10)
+    admin_email = StringField('관리자 이메일', validators=[Optional(), Email(message='유효한 이메일을 입력해주세요.')])
+    admin_github_url = StringField('관리자 GitHub URL', validators=[Optional(), URLValidator(), Length(max=255)])
+    ad_sense_code = TextAreaField('AdSense 또는 광고 코드', validators=[Optional()])
+    google_analytics_id = StringField('Google Analytics ID (예: UA-XXXXX-Y)', validators=[Optional(), Length(max=50)])
+    footer_copyright_text = StringField('푸터 저작권 문구', validators=[Optional(), Length(max=255)], default=" {year} {site_title}. All rights reserved.")
+    submit = SubmitField('설정 저장')

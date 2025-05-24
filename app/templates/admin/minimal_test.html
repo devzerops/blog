@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html>
+<head><title>Minimal Test</title></head>
+<body>
+    <h1>Minimal Test Page for Site Settings Route</h1>
+    <p>Current user: {{ current_user.username if current_user else "None" }}</p>
+    <p>Site settings object: {{ site_settings.site_title if site_settings else "None" }}</p>
+</body>
+</html>

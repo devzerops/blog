@@ -3,8 +3,8 @@ from flask import (
     request, flash, current_app, send_from_directory, jsonify, session, Response, abort, send_file, make_response
 )
 from app.auth import token_required # Keep for reference if needed, but new logic below
-from app.models import Post, User, Comment, PageView # Added PageView
-from app.forms import PostForm, SettingsForm, DeleteForm, ImportForm # Added ImportForm
+from app.models import Post, User, Comment, PageView, SiteSetting # Added SiteSetting
+from app.forms import PostForm, SettingsForm, DeleteForm, ImportForm, SiteSettingsForm # Added SiteSettingsForm
 from app.database import db
 from werkzeug.utils import secure_filename
 import os
@@ -546,12 +546,103 @@ def site_stats(current_user):
                            active_users_approx=active_users_approx,
                            current_user=current_user)
 
+@bp_admin.route('/profile-settings', methods=['GET', 'POST'])
+@admin_required
+def profile_settings(current_user_from_token):
+    # This form is for User model attributes like username, password
+    form = SettingsForm(original_username=current_user_from_token.username, obj=current_user_from_token) 
+    if form.validate_on_submit():
+        # Handle password change
+        if form.new_password.data:
+            if not form.current_password.data:
+                flash('새 비밀번호를 설정하려면 현재 비밀번호를 입력해야 합니다.', 'danger')
+                return render_template('admin_profile_settings.html', title='관리자 프로필 설정', form=form, current_user=current_user_from_token)
+            if not current_user_from_token.check_password(form.current_password.data):
+                flash('현재 비밀번호가 정확하지 않습니다.', 'danger')
+                return render_template('admin_profile_settings.html', title='관리자 프로필 설정', form=form, current_user=current_user_from_token)
+            current_user_from_token.set_password(form.new_password.data)
+            flash('비밀번호가 성공적으로 변경되었습니다.', 'info')
+
+        # Handle username change
+        if current_user_from_token.username != form.username.data:
+            # Form's validate_username should handle uniqueness check if username.data != original_username
+            current_user_from_token.username = form.username.data
+            flash('사용자 아이디가 성공적으로 변경되었습니다.', 'info')
+        
+        db.session.add(current_user_from_token)
+        db.session.commit()
+        flash('관리자 프로필 설정이 성공적으로 저장되었습니다.', 'success')
+        return redirect(url_for('admin.profile_settings')) # Redirect to the new URL
+    
+    # For GET requests, populate form fields that are not directly mapped by obj if necessary
+    # Example: form.username.data = current_user_from_token.username (already handled by obj)
+
+    return render_template('admin_profile_settings.html', title='관리자 프로필 설정', form=form, current_user=current_user_from_token)
+
 @bp_admin.route('/settings', methods=['GET', 'POST'])
 @admin_required
-def settings(current_user_from_token):
-    form = SettingsForm(obj=current_user_from_token)
+def site_settings(current_user): # current_user is passed by @admin_required
+    settings_obj = SiteSetting.query.first()
+    if not settings_obj:
+        settings_obj = SiteSetting()
+        db.session.add(settings_obj)
+        try:
+            db.session.commit()
+            flash('사이트 설정이 초기화되었습니다. 기본값을 검토하고 저장해주세요.', 'info')
+            settings_obj = SiteSetting.query.first() # Re-fetch to get ID and ensure it's managed by session
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error creating initial site settings: {e}")
+            flash('초기 사이트 설정을 생성하는 중 오류가 발생했습니다.', 'danger')
+            return redirect(url_for('admin.dashboard')) # Or some other safe place
+
+    form = SiteSettingsForm(obj=settings_obj)
+
     if form.validate_on_submit():
-        form.populate_obj(current_user_from_token)
-        db.session.commit()
-        flash('관리자 설정이 성공적으로 저장되었습니다.', 'success')
-    return render_template('admin_settings.html', title='관리자 설정', form=form, current_user=current_user_from_token)
+        # Handle favicon upload first
+        if form.favicon_file.data:
+            file = form.favicon_file.data
+            filename = secure_filename(file.filename)
+            favicon_folder = os.path.join(current_app.static_folder, 'img', 'favicon')
+            os.makedirs(favicon_folder, exist_ok=True)
+
+            # Delete old favicon if it exists and is different
+            if settings_obj.favicon_filename and settings_obj.favicon_filename != filename:
+                old_favicon_path = os.path.join(favicon_folder, settings_obj.favicon_filename)
+                if os.path.exists(old_favicon_path):
+                    try:
+                        os.remove(old_favicon_path)
+                    except Exception as e:
+                        current_app.logger.error(f"Error deleting old favicon {old_favicon_path}: {e}")
+            
+            try:
+                file.save(os.path.join(favicon_folder, filename))
+                settings_obj.favicon_filename = filename
+            except Exception as e:
+                flash(f'파비콘 파일 저장 중 오류 발생: {e}', 'danger')
+                current_app.logger.error(f"Favicon save error: {e}")
+
+        # Populate other form data to the object
+        # Need to exclude favicon_file as it's not a direct model field
+        form_data_dict = form.data.copy()
+        form_data_dict.pop('favicon_file', None) # Remove file field from dict before populating
+        form_data_dict.pop('csrf_token', None) # CSRF token is not part of the model
+        form_data_dict.pop('submit', None) # Submit button is not part of the model
+
+        for key, value in form_data_dict.items():
+            if hasattr(settings_obj, key):
+                setattr(settings_obj, key, value)
+
+        try:
+            db.session.commit()
+            flash('사이트 설정이 성공적으로 저장되었습니다.', 'success')
+            return redirect(url_for('admin.site_settings')) # Redirect to the same page
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error saving site settings: {e}")
+            flash(f'사이트 설정 저장 중 오류 발생: {e}', 'danger')
+
+    # For GET request, if there's a favicon_filename, ensure form.favicon_file.data is not incorrectly populated
+    # This is generally not an issue as FileField is not populated from obj like other fields.
+
+    return render_template('admin/settings.html', title='사이트 설정', form=form, current_user=current_user)

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ title }}</h1>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-cogs me-1"></i>
+            사이트 전체 설정 수정
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admin.site_settings') }}" enctype="multipart/form-data">
+                {{ form.hidden_tag() }}
+
+                <div class="mb-3">
+                    {{ form.site_title.label(class="form-label") }}
+                    {{ form.site_title(class="form-control" + (" is-invalid" if form.site_title.errors else "")) }}
+                    {% if form.site_title.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.site_title.errors %}<span>{{ error }}</span>{% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.site_description.label(class="form-label") }}
+                    {{ form.site_description(class="form-control" + (" is-invalid" if form.site_description.errors else ""), rows="3") }}
+                    {% if form.site_description.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.site_description.errors %}<span>{{ error }}</span>{% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.site_domain.label(class="form-label") }}
+                    {{ form.site_domain(class="form-control" + (" is-invalid" if form.site_domain.errors else "")) }}
+                    {% if form.site_domain.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.site_domain.errors %}<span>{{ error }}</span>{% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.favicon_file.label(class="form-label") }}
+                    {{ form.favicon_file(class="form-control" + (" is-invalid" if form.favicon_file.errors else "")) }}
+                    {% if form.favicon_file.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.favicon_file.errors %}<span>{{ error }}</span>{% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.posts_per_page.label(class="form-label") }}
+                    {{ form.posts_per_page(class="form-control" + (" is-invalid" if form.posts_per_page.errors else "")) }}
+                    {% if form.posts_per_page.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.posts_per_page.errors %}<span>{{ error }}</span>{% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.admin_email.label(class="form-label") }}
+                    {{ form.admin_email(class="form-control" + (" is-invalid" if form.admin_email.errors else "")) }}
+                    {% if form.admin_email.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.admin_email.errors %}<span>{{ error }}</span>{% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    {{ form.admin_github_url.label(class="form-label") }}
+                    {{ form.admin_github_url(class="form-control" + (" is-invalid" if form.admin_github_url.errors else "")) }}
+                    {% if form.admin_github_url.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.admin_github_url.errors %}<span>{{ error }}</span>{% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.ad_sense_code.label(class="form-label") }}
+                    {{ form.ad_sense_code(class="form-control" + (" is-invalid" if form.ad_sense_code.errors else ""), rows="5") }}
+                    {% if form.ad_sense_code.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.ad_sense_code.errors %}<span>{{ error }}</span>{% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.google_analytics_id.label(class="form-label") }}
+                    {{ form.google_analytics_id(class="form-control" + (" is-invalid" if form.google_analytics_id.errors else "")) }}
+                    {% if form.google_analytics_id.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.google_analytics_id.errors %}<span>{{ error }}</span>{% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.footer_copyright_text.label(class="form-label") }}
+                    {{ form.footer_copyright_text(class="form-control" + (" is-invalid" if form.footer_copyright_text.errors else "")) }}
+                    {% if form.footer_copyright_text.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.footer_copyright_text.errors %}<span>{{ error }}</span>{% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                {{ form.submit(class="btn btn-primary mt-3") }}
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

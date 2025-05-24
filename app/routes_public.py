@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, current_app, abort, url_for, session, send_from_directory, redirect, flash
 from markupsafe import Markup # Import Markup from markupsafe
-from app.models import Post, db, User, Comment # Removed Tag, Added User, Comment
+from app.models import Post, db, User, Comment, SiteSetting # Removed Tag, Added User, Comment, SiteSetting
 from app.forms import CommentForm # Import CommentForm
 from app.database import db # Import db
 from app.auth import get_current_user_if_logged_in # Add this import
@@ -67,8 +67,14 @@ def post_list():
             unique_tags.update(tags_list)
     sorted_unique_tags = sorted(list(unique_tags))
 
+    # Get posts_per_page from SiteSetting or config
+    site_settings = SiteSetting.query.first()
+    posts_per_page = current_app.config.get('POSTS_PER_PAGE', 10)
+    if site_settings and site_settings.posts_per_page:
+        posts_per_page = site_settings.posts_per_page
+
     posts_pagination = query_obj.order_by(Post.created_at.desc()).paginate(
-        page=page, per_page=current_app.config.get('POSTS_PER_PAGE', 10), error_out=False
+        page=page, per_page=posts_per_page, error_out=False
     )
     posts_items = posts_pagination.items
     

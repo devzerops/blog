@@ -1,3 +1,9 @@
 <footer class="mt-5 py-3 bg-body-tertiary text-center">
-    <p>&copy; {{ current_year }} 내 블로그. 모든 권리 보유.</p>
+    <p>
+        {% if site_settings and site_settings.footer_copyright_text %}
+            {{ site_settings.footer_copyright_text.replace('{year}', current_year|string).replace('{site_title}', site_settings.site_title if site_settings.site_title else '내 블로그')|safe }}
+        {% else %}
+            &copy; {{ current_year }} {{ site_settings.site_title if site_settings and site_settings.site_title else '내 블로그' }}. 모든 권리 보유.
+        {% endif %}
+    </p>
 </footer>

@@ -110,6 +110,17 @@ def create_app(config_class=Config):
     def inject_current_year():
         return {'current_year': datetime.datetime.now(datetime.timezone.utc).year}
 
+    @app.context_processor
+    def inject_site_settings():
+        from app.models import SiteSetting # Import here to avoid circular dependencies
+        settings = SiteSetting.query.first()
+        if settings:
+            return {'site_settings': settings}
+        # If no settings found, you might want to return defaults or an empty object
+        # For now, let's return None, templates can check for existence
+        # Or, return a default SiteSetting object if that's preferred, though the admin page creates one.
+        return {'site_settings': None} # Or SiteSetting() if you want default values always present
+
     @app.cli.command('create-admin')
     def create_admin_command():
         """Creates the admin user."""
