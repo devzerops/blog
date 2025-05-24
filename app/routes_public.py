@@ -26,8 +26,23 @@ def post_list():
     page = request.args.get('page', 1, type=int)
     search_query = request.args.get('q', None)
     tag_name = request.args.get('tag', None)
+    category_name = request.args.get('category', None) # Added category_name
     
     query_obj = Post.query.filter(Post.is_published == True) # Show only published posts
+
+    title = '블로그 게시글' # Default title
+
+    if tag_name:
+        query_obj = query_obj.filter(Post.tags.ilike(f"%{tag_name}%"))
+        title = f'"{tag_name}" 태그 글 목록'
+    
+    if category_name:
+        # Placeholder for category filtering logic on query_obj
+        # For now, just updating title. Actual filtering will be added when categories are implemented.
+        # query_obj = query_obj.filter(Post.category == category_name) # Example if category was a direct field
+        title = f'"{category_name}" 카테고리 글 목록'
+        if tag_name: # If both tag and category are present
+             title = f'"{tag_name}" 태그 및 "{category_name}" 카테고리 글 목록'
 
     if search_query:
         search_term = f"%{search_query}%"
@@ -37,9 +52,20 @@ def post_list():
                 Post.content.ilike(search_term)
             )
         )
-        title = f'"{search_query}" 검색 결과'
-    else:
-        title = '블로그 게시글'
+        # Adjust title if search is also active
+        if tag_name or category_name:
+            title += f' 중 "{search_query}" 검색 결과'
+        else:
+            title = f'"{search_query}" 검색 결과'
+    
+    # Fetch all unique tags from published posts for the sidebar
+    all_published_posts_for_tags = Post.query.filter(Post.is_published == True).all()
+    unique_tags = set()
+    for post_item_for_tags in all_published_posts_for_tags:
+        if post_item_for_tags.tags:
+            tags_list = [t.strip() for t in post_item_for_tags.tags.split(',') if t.strip()]
+            unique_tags.update(tags_list)
+    sorted_unique_tags = sorted(list(unique_tags))
 
     posts_pagination = query_obj.order_by(Post.created_at.desc()).paginate(
         page=page, per_page=current_app.config.get('POSTS_PER_PAGE', 10), error_out=False
@@ -73,7 +99,14 @@ def post_list():
             'comment_count': post_item.comments.count()  
         })
         
-    return render_template('post_list.html', title=title, posts=processed_posts, pagination=posts_pagination, search_query=search_query, tag_filter=tag_name)
+    return render_template('post_list.html', 
+                           title=title, 
+                           posts=processed_posts, 
+                           pagination=posts_pagination, 
+                           search_query=search_query, 
+                           tag_filter=tag_name, 
+                           category_filter=category_name,  # Pass category_filter
+                           all_tags=sorted_unique_tags) # Pass all_tags
 
 @bp_public.route('/posts/<int:post_id>')
 def post_detail(post_id):

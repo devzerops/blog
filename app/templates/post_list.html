@@ -3,6 +3,7 @@
 {% block title %}
     {{ title if title else '블로그 게시글' }}
     {% if tag_filter %}- "{{ tag_filter }}" 태그 글 목록{% endif %}
+    {% if category_filter %}- "{{ category_filter }}" 카테고리 글 목록{% endif %}
 {% endblock %}
 
 {% block meta_description %}
@@ -12,89 +13,147 @@
 {% block main_container_class %}container-fluid{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1 class="mb-4">{{ title }} {% if tag_filter %} <small class="text-muted">({{ tag_filter }})</small>{% endif %}</h1>
-    
-    {% if posts %}
-        <div class="post-list-container">
-            {% for post in posts %}
-            <div class="card mb-3 shadow-sm blog-post-card-reddit">
-                <div class="row g-0">
-                    {# Removed upvote/downvote column #}
-                    {% if post.image_url %}
-                    <div class="col-auto" style="max-width: 100px;">
-                        <a href="{{ url_for('public.post_detail', post_id=post.id) }}">
-                            <img src="{{ post.image_url }}" class="img-fluid rounded-start" alt="{{ post.alt_text }}" style="width: 100px; height: 75px; object-fit: cover;">
+<div class="row mt-4">
+    <!-- Left Sidebar for Filters -->
+    <div class="col-md-2 ps-lg-4 ps-md-3 ps-2 pe-2">
+        <div class="sticky-top" style="top: 20px;"> 
+            <h5><i class="bi bi-tags-fill me-2"></i>태그</h5>
+            <div class="list-group list-group-flush mb-4">
+                <a href="{{ url_for('public.post_list') }}" class="list-group-item list-group-item-action {% if not tag_filter and not category_filter %}active{% endif %}">
+                    모든 태그
+                </a>
+                {% if all_tags %}
+                    {% for tag in all_tags %}
+                        <a href="{{ url_for('public.post_list', tag=tag) }}" class="list-group-item list-group-item-action {% if tag_filter == tag %}active{% endif %}">
+                            {{ tag }}
                         </a>
-                    </div>
-                    {% endif %}
-                    <div class="col">
-                        <div class="card-body py-2 px-3">
-                            <h5 class="card-title mb-1">
-                                <a href="{{ url_for('public.post_detail', post_id=post.id) }}" class="text-decoration-none stretched-link">{{ post.title }}</a>
-                            </h5>
-                            <p class="card-text text-muted small mb-1">
-                                Submitted {{ post.created_at.strftime('%Y-%m-%d') }}
-                            </p>
-                            <div class="d-flex align-items-center text-muted small">
-                                <a href="{{ url_for('public.post_detail', post_id=post.id) }}#comments" class="text-decoration-none me-2"><i class="fas fa-comment-alt me-1"></i>{{ post.comment_count }} comments</a>
-                                <span class="me-2"><i class="fas fa-eye me-1"></i>{{ post.views }} views</span>
-                                {# Removed Share and Save links #}
-                            </div>
-                            {% if post.tags %}
-                                <div class="mt-2">
-                                    {% for tag_name in post.tags.split(',') %}
-                                        {% if tag_name.strip() %}
-                                            <a href="{{ url_for('public.post_list', tag=tag_name.strip()) }}" class="badge bg-secondary text-decoration-none me-1">{{ tag_name.strip() }}</a>
-                                        {% endif %}
-                                    {% endfor %}
+                    {% endfor %}
+                {% else %}
+                    <span class="list-group-item text-muted">태그 없음</span>
+                {% endif %}
+            </div>
+
+            <h5><i class="bi bi-bookmarks-fill me-2"></i>카테고리</h5>
+            <div class="list-group list-group-flush">
+                <a href="{{ url_for('public.post_list') }}" class="list-group-item list-group-item-action {% if not category_filter and not tag_filter %}active{% endif %}">
+                    모든 카테고리
+                </a>
+                {# Placeholder for categories - replace with actual categories later #}
+                <a href="#" class="list-group-item list-group-item-action disabled">카테고리 1 (예시)</a>
+                <a href="#" class="list-group-item list-group-item-action disabled">카테고리 2 (예시)</a>
+                <span class="list-group-item text-muted">카테고리 기능 준비중</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Content Area for Posts -->
+    <div class="col-md-8 px-2">
+        <h1 class="mb-4">
+            {{ title }} 
+            {% if tag_filter %} <small class="text-muted">({{ tag_filter }} 태그)</small>{% endif %}
+            {% if category_filter %} <small class="text-muted">({{ category_filter }} 카테고리)</small>{% endif %}
+        </h1>
+        
+        {% if posts %}
+            <div class="post-list-container">
+                {% for post in posts %}
+                <div class="card mb-3 shadow-sm blog-post-card-reddit">
+                    <div class="row g-0">
+                        {% if post.image_url %}
+                        <div class="col-auto" style="max-width: 100px;">
+                            <a href="{{ url_for('public.post_detail', post_id=post.id) }}">
+                                <img src="{{ post.image_url }}" class="img-fluid rounded-start" alt="{{ post.alt_text }}" style="width: 100px; height: 75px; object-fit: cover;">
+                            </a>
+                        </div>
+                        {% endif %}
+                        <div class="col">
+                            <div class="card-body py-2 px-3">
+                                <h5 class="card-title mb-1">
+                                    <a href="{{ url_for('public.post_detail', post_id=post.id) }}" class="text-decoration-none stretched-link">{{ post.title }}</a>
+                                </h5>
+                                <p class="card-text text-muted small mb-1">
+                                    Submitted {{ post.created_at.strftime('%Y-%m-%d') }}
+                                </p>
+                                <div class="d-flex align-items-center text-muted small">
+                                    <a href="{{ url_for('public.post_detail', post_id=post.id) }}#comments" class="text-decoration-none me-2"><i class="fas fa-comment-alt me-1"></i>{{ post.comment_count }} comments</a>
+                                    <span class="me-2"><i class="fas fa-eye me-1"></i>{{ post.views }} views</span>
                                 </div>
-                            {% endif %}
+                                {% if post.tags %}
+                                    <div class="mt-2">
+                                        {% for tag_name in post.tags.split(',') %}
+                                            {% if tag_name.strip() %}
+                                                <a href="{{ url_for('public.post_list', tag=tag_name.strip()) }}" class="badge bg-secondary text-decoration-none me-1">{{ tag_name.strip() }}</a>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            {% endfor %}
-        </div>
-
-        {% if pagination and pagination.pages > 1 %}
-        <nav aria-label="Page navigation" class="mt-5">
-            <ul class="pagination justify-content-center">
-                {% if pagination.has_prev %}
-                    <li class="page-item"><a class="page-link" href="{{ url_for(request.endpoint, page=pagination.prev_num, tag_name=tag_filter if tag_filter else None) }}">이전</a></li>
-                {% else %}
-                    <li class="page-item disabled"><span class="page-link">이전</span></li>
-                {% endif %}
-
-                {% for page_num in pagination.iter_pages() %}
-                    {% if page_num %}
-                        {% if pagination.page == page_num %}
-                            <li class="page-item active" aria-current="page"><span class="page-link">{{ page_num }}</span></li>
-                        {% else %}
-                            <li class="page-item"><a class="page-link" href="{{ url_for(request.endpoint, page=page_num, tag_name=tag_filter if tag_filter else None) }}">{{ page_num }}</a></li>
-                        {% endif %}
-                    {% else %}
-                        <li class="page-item disabled"><span class="page-link">...</span></li>
-                    {% endif %}
                 {% endfor %}
+            </div>
 
-                {% if pagination.has_next %}
-                    <li class="page-item"><a class="page-link" href="{{ url_for(request.endpoint, page=pagination.next_num, tag_name=tag_filter if tag_filter else None) }}">다음</a></li>
-                {% else %}
-                    <li class="page-item disabled"><span class="page-link">다음</span></li>
-                {% endif %}
-            </ul>
-        </nav>
-        {% endif %}
+            {% if pagination and pagination.pages > 1 %}
+            <nav aria-label="Page navigation" class="mt-5">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.has_prev %}
+                        <li class="page-item"><a class="page-link" href="{{ url_for(request.endpoint, page=pagination.prev_num, tag=tag_filter if tag_filter else None, category=category_filter if category_filter else None) }}">이전</a></li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">이전</span></li>
+                    {% endif %}
 
-    {% else %}
-        <p class="text-center">{% if tag_filter %}
-            "{{tag_filter}}" 태그가 포함된 글이 없습니다.
-            {% else %}
-            아직 게시된 글이 없습니다.
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if pagination.page == page_num %}
+                                <li class="page-item active" aria-current="page"><span class="page-link">{{ page_num }}</span></li>
+                            {% else %}
+                                <li class="page-item"><a class="page-link" href="{{ url_for(request.endpoint, page=page_num, tag=tag_filter if tag_filter else None, category=category_filter if category_filter else None) }}">{{ page_num }}</a></li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if pagination.has_next %}
+                        <li class="page-item"><a class="page-link" href="{{ url_for(request.endpoint, page=pagination.next_num, tag=tag_filter if tag_filter else None, category=category_filter if category_filter else None) }}">다음</a></li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">다음</span></li>
+                    {% endif %}
+                </ul>
+            </nav>
             {% endif %}
-             <a href="{{ url_for('public.post_list') }}">전체 목록으로 돌아가기</a>
-        </p>
-    {% endif %}
+
+        {% else %}
+            <p class="text-center">
+                {% if tag_filter %}
+                    "{{tag_filter}}" 태그가 포함된 글이 없습니다.
+                {% elif category_filter %}
+                    "{{category_filter}}" 카테고리에 해당하는 글이 없습니다.
+                {% else %}
+                    아직 게시된 글이 없습니다.
+                {% endif %}
+                 <a href="{{ url_for('public.post_list') }}">전체 목록으로 돌아가기</a>
+            </p>
+        {% endif %}
+    </div>
+
+    <!-- Right Sidebar for AdSense -->
+    <div class="col-md-2 ps-2 pe-lg-4 pe-md-3 pe-2">
+        <div class="sticky-top" style="top: 20px;">
+            <h5><i class="bi bi-megaphone-fill me-2"></i>광고</h5>
+            <div class="card">
+                <div class="card-body text-center">
+                    <p class="card-text text-muted">Google AdSense 영역</p>
+                    <!-- AdSense code will go here -->
+                    <div style="width:100%; height:250px; background-color:#f0f0f0; display:flex; align-items:center; justify-content:center;">
+                        (광고 예시)
+                    </div>
+                </div>
+            </div>
+            <!-- You might want to add more ad units or other content here -->
+        </div>
+    </div>
+
 </div>
 {% endblock %}
