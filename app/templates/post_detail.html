@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "bootstrap_wtf.html" as wtf %}
 
 {% block title %}{{ post.title }}{% endblock %}
 {% block meta_description %}{{ meta_description if meta_description else post.title }}{% endblock %}
@@ -89,6 +90,37 @@
         </div>
 
         <hr class="my-5">
+
+        {# Comments Section #}
+        <section id="comments" class="my-5">
+            <h3 class="mb-4">댓글 ({{ comments|length }})</h3>
+
+            {# Display Existing Comments #}
+            {% if comments %}
+                {% for comment in comments %}
+                    <div class="card mb-3 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ comment.nickname }}</h5>
+                            <p class="card-text">{{ comment.content|nl2br }}</p>
+                            <p class="card-text"><small class="text-muted">{{ comment.created_at.strftime('%Y년 %m월 %d일 %H:%M') }}</small></p>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>아직 댓글이 없습니다. 첫 댓글을 남겨주세요!</p>
+            {% endif %}
+
+            {# Comment Submission Form #}
+            <div class="mt-4 pt-4 border-top">
+                <h4>댓글 남기기</h4>
+                <form method="POST" action="{{ url_for('public.add_comment', post_id=post.id) }}" novalidate>
+                    {{ comment_form.hidden_tag() }}
+                    {{ wtf.form_field(comment_form.nickname, class="form-control mb-2") }}
+                    {{ wtf.form_field(comment_form.content, class="form-control mb-2", rows=4) }}
+                    {{ wtf.form_field(comment_form.submit, class="btn btn-primary mt-2") }}
+                </form>
+            </div>
+        </section>
 
         <div class="navigation-links">
             <a href="{{ url_for('public.post_list') }}" class="btn btn-outline-secondary">&laquo; 목록으로 돌아가기</a>

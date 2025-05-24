@@ -1,6 +1,7 @@
 import os
 from flask import Flask
 from flask_migrate import Migrate
+from markupsafe import Markup
 from config import Config
 from app.database import db
 import datetime
@@ -14,11 +15,17 @@ def strip_images_filter(html_content):
     cleaned_content = re.sub(r'<img(?:\s[^>]*)?>', '', str(html_content), flags=re.IGNORECASE)
     return cleaned_content
 
+def nl2br_filter(s):
+    if s is None:
+        return ''
+    return Markup(str(s).replace('\n', '<br>\n'))
+
 def create_app(config_class=Config):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(config_class)
 
     app.jinja_env.filters['strip_images'] = strip_images_filter
+    app.jinja_env.filters['nl2br'] = nl2br_filter
 
     try:
         os.makedirs(app.instance_path, exist_ok=True)

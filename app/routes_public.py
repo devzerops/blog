@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, current_app, abort, url_for, session, send_from_directory, redirect, flash
 from markupsafe import Markup # Import Markup from markupsafe
-from app.models import Post, Tag, db, User # Added User
+from app.models import Post, Tag, db, User, Comment # Added User, Comment
+from app.forms import CommentForm # Import CommentForm
 from app.database import db # Import db
 import os # Added: Import the 'os' module
 import re  # For regex operations to remove image tags
@@ -98,12 +99,38 @@ def post_detail(post_id):
             image_url = url_for('static', filename=f'uploads/{post.image_filename}')
         # else: handle non-static UPLOAD_FOLDER serving if necessary
 
+    # Comment form and comments list
+    form = CommentForm()
+    comments = post.comments.order_by(Comment.created_at.asc()).all()
+
     return render_template('post_detail.html', 
                            title=post.title, 
                            post=post, 
                            html_content=html_content, 
                            image_url=image_url,
-                           meta_description=meta_description) # Pass meta_description
+                           meta_description=meta_description, # Pass meta_description
+                           comment_form=form, # Pass comment form
+                           comments=comments) # Pass comments list
+
+@bp_public.route('/post/<int:post_id>/comment', methods=['POST'])
+def add_comment(post_id):
+    post = Post.query.get_or_404(post_id)
+    form = CommentForm()
+    if form.validate_on_submit():
+        comment = Comment(
+            nickname=form.nickname.data,
+            content=form.content.data,
+            post_id=post.id
+        )
+        db.session.add(comment)
+        db.session.commit()
+        flash('댓글이 성공적으로 등록되었습니다.', 'success')
+    else:
+        # Store errors in flash to display on the post_detail page after redirect
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f"{getattr(form, field).label.text}: {error}", 'danger')
+    return redirect(url_for('public.post_detail', post_id=post.id))
 
 @bp_public.route('/tags/<string:tag_name>')
 def posts_by_tag(tag_name):

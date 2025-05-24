@@ -65,3 +65,8 @@ class SettingsForm(FlaskForm):
     #         user = User.query.filter_by(email=self.email.data).first()
     #         if user:
     #             raise ValidationError('That email is taken. Please choose a different one.')
+
+class CommentForm(FlaskForm):
+    nickname = StringField('닉네임', validators=[DataRequired(), Length(min=2, max=100)])
+    content = TextAreaField('댓글 내용', validators=[DataRequired(), Length(min=1, max=1000)])
+    submit = SubmitField('댓글 달기')

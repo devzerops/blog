@@ -51,5 +51,20 @@ class Post(db.Model):
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     views = db.Column(db.Integer, default=0, nullable=False)
 
+    # Relationship to comments
+    comments = db.relationship('Comment', backref='post', lazy='dynamic', cascade='all, delete-orphan')
+
     def __repr__(self):
         return f'<Post {self.title}>'
+
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nickname = db.Column(db.String(100), nullable=False) # Nickname for anonymous users
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, index=True, default=lambda: datetime.now(timezone.utc))
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
+    # user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Optional: if you want to link to registered users later
+    # author = db.relationship('User', backref=db.backref('comments', lazy='dynamic')) # Optional
+
+    def __repr__(self):
+        return f'<Comment {self.id} by {self.nickname}>'
