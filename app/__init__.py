@@ -5,11 +5,13 @@ from markupsafe import Markup
 from config import Config
 from app.database import db
 from flask_wtf.csrf import CSRFProtect
+from flask_bootstrap import Bootstrap5
 import datetime
 import re
 
 migrate = Migrate()
 csrf = CSRFProtect()
+bootstrap = Bootstrap5()
 
 def strip_images_filter(html_content):
     if html_content is None:
@@ -37,6 +39,8 @@ def mask_ip_filter(ip_address_str):
 def create_app(config_class=Config):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(config_class)
+
+    bootstrap.init_app(app)
 
     app.jinja_env.filters['strip_images'] = strip_images_filter
     app.jinja_env.filters['nl2br'] = nl2br_filter

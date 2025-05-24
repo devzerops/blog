@@ -1,0 +1,49 @@
+{% extends "admin_base.html" %}
+{% import "bootstrap5/form.html" as wtf %}
+
+{% block admin_content %}
+<div class="container mt-4">
+    <h2>{{ title }}</h2>
+    <hr>
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="card">
+                <div class="card-header">
+                    백업 파일 업로드 (ZIP)
+                </div>
+                <div class="card-body">
+                    <p>이전에 내보낸 사이트 콘텐츠 백업 파일(ZIP)을 업로드하여 게시물과 댓글을 복원합니다.</p>
+                    <p><strong>주의:</strong> 복원 작업은 현재 데이터베이스에 영향을 미칩니다. 신중하게 진행해주세요.</p>
+                    <form method="POST" action="{{ url_for('admin.data_restore') }}" enctype="multipart/form-data" novalidate>
+                        {{ import_form.hidden_tag() }} {# CSRF token #}
+                        
+                        <div class="mb-3">
+                            {{ wtf.render_field(import_form.backup_file, class="form-control") }}
+                            {% if import_form.backup_file.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in import_form.backup_file.errors %}
+                                        <span>{{ error }}</span><br>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        {{ wtf.render_field(import_form.submit, class="btn btn-primary") }}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -12,6 +12,13 @@ class Config:
     ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD') or 'defaultadminpassword'
     UPLOAD_FOLDER = os.path.join(basedir, 'app', 'static', 'uploads')
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+    SESSION_PERMANENT = False
+    SESSION_USE_SIGNER = True
+
+    # Bootstrap-Flask basic config (example)
+    BOOTSTRAP_BTN_STYLE = 'btn-primary' 
+
+    # Custom configurations for the blog
     POSTS_PER_PAGE = 10
     JWT_EXPIRATION_SECONDS = 3600 # 1 hour
 

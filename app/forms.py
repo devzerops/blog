@@ -72,3 +72,7 @@ class CommentForm(FlaskForm):
 
 class DeleteForm(FlaskForm):
     submit = SubmitField('삭제') # This field might not be strictly necessary if button is styled in template
+
+class ImportForm(FlaskForm):
+    backup_file = FileField('백업 파일 (ZIP)', validators=[DataRequired()])
+    submit = SubmitField('콘텐츠 복원 시작')

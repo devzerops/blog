@@ -9,3 +9,4 @@ Flask-WTF
 email_validator
 Pillow
 python-slugify
+bootstrap-flask>=2.0.0

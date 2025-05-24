@@ -1,102 +1,105 @@
 {% extends "base.html" %}
 
-{% block title %}Admin Dashboard{% endblock %}
+{% block title %}관리자 대시보드{% endblock %}
 
 {% block main_container_class %}container-fluid{% endblock %}
 
 {% block content %}
-<h2>{{ title }}</h2>
-<p>안녕하세요, {{ current_user.username }}님! 다음은 현재 게시물 목록입니다.</p>
+<div class="container mt-4">
+    <h2>{{ title }}</h2>
+    <p>안녕하세요, {{ current_user.username }}님! 다음은 현재 게시물 목록입니다.</p>
 
-<a href="{{ url_for('admin.new_post') }}" class="btn btn-success mb-3">새 글 작성</a>
-<a href="{{ url_for('admin.export_content') }}" class="btn btn-info mb-3 ms-2">콘텐츠 내보내기 (JSON)</a>
-<a href="{{ url_for('admin.export_all_content') }}" class="btn btn-secondary mb-3 ms-2">사이트 전체 콘텐츠 내보내기 (JSON+이미지 ZIP)</a>
-
-<hr>
-<h4>콘텐츠 복원</h4>
-<form method="POST" action="{{ url_for('admin.import_all_content') }}" enctype="multipart/form-data" class="mb-3">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-    <div class="form-group">
-        <label for="backup_file">백업 파일 (ZIP):</label>
-        <input type="file" class="form-control-file" id="backup_file" name="backup_file" accept=".zip" required>
+    <div class="mb-3">
+        <a href="{{ url_for('admin.new_post') }}" class="btn btn-success">새 글 작성</a>
+        
+        <div class="btn-group ms-2">
+            <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                데이터 관리
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="{{ url_for('admin.export_all_content') }}">사이트 전체 콘텐츠 내보내기 (JSON+이미지 ZIP)</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('admin.data_restore') }}">콘텐츠 복원</a></li>
+            </ul>
+        </div>
     </div>
-    <button type="submit" class="btn btn-warning">콘텐츠 복원 시작</button>
-</form>
 
-<h3 class="mt-4">게시물 목록</h3>
+    <hr class="d-none"> 
 
-{% if posts %}
-<div class="table-responsive">
-    <table class="table table-striped table-hover">
-        <thead>
-            <tr>
-                <th>제목</th>
-                <th>작성일</th>
-                <th>수정일</th>
-                <th>상태</th>
-                <th>작업</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for post in posts %}
-            <tr>
-                <td><a href="{{ url_for('public.post_detail', post_id=post.id) }}">{{ post.title }}</a></td>
-                <td>{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                <td>{{ post.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                <td>
-                    {% if post.is_published %}
-                        <span class="badge bg-success">발행됨</span>
-                        {% if post.published_at %}
-                            <br><small class="text-muted">{{ post.published_at.strftime('%Y-%m-%d %H:%M') }}</small>
+    <h3 class="mt-4">게시물 목록</h3>
+
+    {% if posts %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>제목</th>
+                    <th>작성일</th>
+                    <th>수정일</th>
+                    <th>상태</th>
+                    <th>작업</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for post in posts %}
+                <tr>
+                    <td><a href="{{ url_for('public.post_detail', post_id=post.id) }}">{{ post.title }}</a></td>
+                    <td>{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>{{ post.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        {% if post.is_published %}
+                            <span class="badge bg-success">발행됨</span>
+                            {% if post.published_at %}
+                                <br><small class="text-muted">{{ post.published_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-warning text-dark">임시저장</span>
                         {% endif %}
-                    {% else %}
-                        <span class="badge bg-warning text-dark">임시저장</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="btn btn-sm btn-outline-primary me-2">수정</a>
-                    <form action="{{ url_for('admin.delete_post', post_id=post.id) }}" method="POST" class="d-inline" onsubmit="return confirm('정말로 이 게시글을 삭제하시겠습니까?');">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <input type="submit" value="삭제" class="btn btn-sm btn-outline-danger">
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% else %}
-<p>아직 작성된 글이 없습니다. <a href="{{ url_for('admin.new_post') }}">새 글을 작성</a>해보세요.</p>
-{% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="btn btn-sm btn-outline-primary me-2">수정</a>
+                        <form action="{{ url_for('admin.delete_post', post_id=post.id) }}" method="POST" class="d-inline" onsubmit="return confirm('정말로 이 게시글을 삭제하시겠습니까?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="submit" value="삭제" class="btn btn-sm btn-outline-danger">
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>아직 작성된 글이 없습니다. <a href="{{ url_for('admin.new_post') }}">새 글을 작성</a>해보세요.</p>
+    {% endif %}
 
-{% if pagination and pagination.pages > 1 %}
-<nav aria-label="Page navigation">
-    <ul class="pagination justify-content-center">
-        {% if pagination.has_prev %}
-            <li class="page-item"><a class="page-link" href="{{ url_for('admin.dashboard', page=pagination.prev_num) }}">이전</a></li>
-        {% else %}
-            <li class="page-item disabled"><span class="page-link">이전</span></li>
-        {% endif %}
-
-        {% for page_num in pagination.iter_pages() %}
-            {% if page_num %}
-                {% if pagination.page == page_num %}
-                    <li class="page-item active" aria-current="page"><span class="page-link">{{ page_num }}</span></li>
-                {% else %}
-                    <li class="page-item"><a class="page-link" href="{{ url_for('admin.dashboard', page=page_num) }}">{{ page_num }}</a></li>
-                {% endif %}
+    {% if pagination and pagination.pages > 1 %}
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {% if pagination.has_prev %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('admin.dashboard', page=pagination.prev_num) }}">이전</a></li>
             {% else %}
-                <li class="page-item disabled"><span class="page-link">...</span></li>
+                <li class="page-item disabled"><span class="page-link">이전</span></li>
             {% endif %}
-        {% endfor %}
 
-        {% if pagination.has_next %}
-            <li class="page-item"><a class="page-link" href="{{ url_for('admin.dashboard', page=pagination.next_num) }}">다음</a></li>
-        {% else %}
-            <li class="page-item disabled"><span class="page-link">다음</span></li>
-        {% endif %}
-    </ul>
-</nav>
-{% endif %}
+            {% for page_num in pagination.iter_pages() %}
+                {% if page_num %}
+                    {% if pagination.page == page_num %}
+                        <li class="page-item active" aria-current="page"><span class="page-link">{{ page_num }}</span></li>
+                    {% else %}
+                        <li class="page-item"><a class="page-link" href="{{ url_for('admin.dashboard', page=page_num) }}">{{ page_num }}</a></li>
+                    {% endif %}
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+
+            {% if pagination.has_next %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('admin.dashboard', page=pagination.next_num) }}">다음</a></li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">다음</span></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
 
 {% endblock %}

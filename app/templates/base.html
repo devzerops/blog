@@ -99,6 +99,15 @@
                 </form>
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                     {% if session.get('admin_token') %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="adminDataManagementDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                데이터 관리
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="adminDataManagementDropdown">
+                                <li><a class="dropdown-item" href="{{ url_for('admin.export_all_content') }}">콘텐츠 내보내기</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('admin.data_restore') }}">콘텐츠 복원</a></li>
+                            </ul>
+                        </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('admin.dashboard') }}">관리자 대시보드</a>
                         </li>

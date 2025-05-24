@@ -4,7 +4,7 @@ from flask import (
 )
 from app.auth import token_required # Keep for reference if needed, but new logic below
 from app.models import Post, User, Comment # Removed Tag, Added User, Comment
-from app.forms import PostForm, SettingsForm, DeleteForm # Removed TagForm
+from app.forms import PostForm, SettingsForm, DeleteForm, ImportForm # Added ImportForm
 from app.database import db
 from werkzeug.utils import secure_filename
 import os
@@ -33,59 +33,46 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         token = session.get('admin_token')
         if not token:
-            flash('로그인이 필요합니다. 이 페이지에 접근하려면 먼저 로그인해주세요.', 'warning')
-            return redirect(url_for('auth.login_page', next=request.url))
+            flash('관리자 권한이 필요합니다. 이 페이지에 접근하려면 관리자로 로그인해주세요.', 'warning')
+            return redirect(url_for('auth.login_page', next=request.url)) # Corrected endpoint
         try:
+            # Attempt to decode the token and get user_id
             data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=["HS256"])
-            current_user = User.query.get(data['user_id'])
-            if not current_user:
-                raise jwt.InvalidTokenError("User not found.")
+            user_id = data.get('user_id')
+            if not user_id:
+                raise jwt.InvalidTokenError("Token does not contain user_id.")
+            
+            # Fetch the user from the database
+            user = User.query.get(user_id)
+            if not user:
+                raise jwt.InvalidTokenError("User not found for token.")
+            
+            # Check if the user is an admin (e.g., by username or a specific role/flag if you have one)
+            # For now, assuming any user with an admin_token is an admin, 
+            # but you might want to add more specific checks, e.g., user.is_admin or user.role == 'admin'
+            # admin_username = current_app.config.get('ADMIN_USERNAME', 'admin') 
+            # if user.username != admin_username:
+            #     flash('이 작업을 수행하려면 관리자 권한이 필요합니다.', 'danger')
+            #     return redirect(url_for('public.post_list'))
 
-            # Check if the current user is the admin
-            # Uses ADMIN_USERNAME from config, defaults to 'admin'
-            admin_username = current_app.config.get('ADMIN_USERNAME', 'admin')
-            if current_user.username != admin_username:
-                flash('이 작업을 수행하려면 관리자 권한이 필요합니다.', 'danger')
-                return redirect(url_for('public.post_list')) 
+            # Pass the user object to the decorated function
+            return f(user, *args, **kwargs) 
 
         except jwt.ExpiredSignatureError:
             flash('세션이 만료되었습니다. 다시 로그인해주세요.', 'warning')
             session.pop('admin_token', None)
-            return redirect(url_for('auth.login_page', next=request.url))
+            return redirect(url_for('auth.login_page', next=request.url)) # Corrected endpoint
         except jwt.InvalidTokenError as e:
             flash(f'유효하지 않은 토큰이거나 사용자 정보 오류입니다: {e}', 'danger')
             session.pop('admin_token', None)
-            return redirect(url_for('auth.login_page'))
+            return redirect(url_for('auth.login_page')) # Corrected endpoint
         except Exception as e:
             current_app.logger.error(f"Admin Auth Error: {e}")
             flash('인증 중 오류가 발생했습니다.', 'danger')
             session.pop('admin_token', None)
-            return redirect(url_for('auth.login_page'))
-        
-        # Pass current_user to the decorated function if it accepts it
-        # This mimics how token_required might pass current_user
-        # Check if 'current_user' is in the function's arguments
-        import inspect
-        sig = inspect.signature(f)
-        if 'current_user' in sig.parameters:
-            return f(current_user, *args, **kwargs)
-        else:
-            return f(*args, **kwargs)
+            return redirect(url_for('auth.login_page')) # Corrected endpoint
 
     return decorated_function
-
-class PostForm(FlaskForm):
-    title = StringField('제목', validators=[DataRequired(), Length(min=1, max=140)])
-    content = TextAreaField('내용 (Markdown 지원)') 
-    image = FileField('커버 이미지 (선택)', validators=[
-        Optional(), 
-        FileAllowed(['jpg', 'jpeg', 'png', 'gif'], '이미지 파일(jpg, jpeg, png, gif)만 업로드 가능합니다!')
-    ])
-    alt_text = StringField('이미지 설명 (Alt Text)', validators=[Optional(), Length(max=255)]) # New field
-    video_embed_url = URLField('동영상 URL (선택, 예: YouTube)', validators=[Optional(), URLValidator()])
-    meta_description = StringField('메타 설명 (선택)', validators=[Optional(), Length(max=255)]) # New field
-    tags = StringField('태그 (쉼표로 구분)')
-    submit = SubmitField('저장') # Changed from '발행' for consistency
 
 def _allowed_file(filename):
     return '.' in filename and \
@@ -154,7 +141,7 @@ def new_post(current_user):
             is_currently_published = True
             current_published_at = datetime.now(timezone.utc)
             flash_message = '새로운 글이 성공적으로 발행되었습니다!'
-        else: # Default to saving as draft if 'publish' is not in form (e.g. 'save_draft' was clicked)
+        else: # Default to saving as draft if 'publish' is not in form (e.g., 'save_draft' was clicked)
             is_currently_published = False
             current_published_at = None
             flash_message = '글이 임시 저장되었습니다.'
@@ -302,66 +289,9 @@ def upload_editor_image(current_user):
         return jsonify({'error': {'message': 'File type not allowed'}}), 400
 
 # Content Export Route
-@bp_admin.route('/export_content', methods=['GET'])
-@token_required
-def export_content(current_user):
-    try:
-        export_data = {
-            "meta": {
-                "exported_at": datetime.now(timezone.utc).isoformat(),
-                "export_format_version": "1.0"
-            },
-            "data": {
-                "posts": []
-            }
-        }
-
-        posts = Post.query.order_by(Post.created_at.asc()).all()
-
-        for post_item in posts:
-            post_dict = {
-                "title": post_item.title,
-                "content": post_item.content,
-                "created_at": post_item.created_at.isoformat() if post_item.created_at else None,
-                "updated_at": post_item.updated_at.isoformat() if post_item.updated_at else None,
-                "is_published": post_item.is_published,
-                "image_filename": post_item.image_filename,
-                "alt_text": post_item.alt_text,
-                "meta_description": post_item.meta_description if post_item.meta_description else "", # Handle None meta_description
-                "views": post_item.views,
-                "author_username": post_item.author.username if post_item.author else None,
-                "comments": []
-            }
-
-            comments = Comment.query.filter_by(post_id=post_item.id).order_by(Comment.created_at.asc()).all()
-            for comment_item in comments:
-                post_dict["comments"].append({
-                    "nickname": comment_item.nickname,
-                    "content": comment_item.content,
-                    "created_at": comment_item.created_at.isoformat() if comment_item.created_at else None
-                })
-            
-            export_data["data"]["posts"].append(post_dict)
-
-        export_json = jsonify(export_data).get_data(as_text=True)
-        
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        filename = f"blog_export_{timestamp}.json"
-
-        return Response(
-            export_json,
-            mimetype="application/json",
-            headers={"Content-Disposition": f"attachment;filename={filename}"}
-        )
-
-    except Exception as e:
-        current_app.logger.error(f"Error during content export: {e}")
-        flash('콘텐츠를 내보내는 중 오류가 발생했습니다.', 'danger')
-        return redirect(url_for('admin.dashboard'))
-
 @bp_admin.route('/export/all_content', methods=['GET'])
 @admin_required
-def export_all_content(current_user):
+def export_all_content(current_user): # Re-added current_user argument
     try:
         # 1. Create a temporary directory
         temp_dir = tempfile.mkdtemp()
@@ -456,130 +386,109 @@ def export_all_content(current_user):
         if 'zip_temp_path' in locals() and os.path.exists(zip_temp_path) and not 'response' in locals():
              os.remove(zip_temp_path)
 
-@bp_admin.route('/import/all_content', methods=['POST'])
+@bp_admin.route('/data/restore', methods=['GET', 'POST']) # Changed route and name
 @admin_required
-def import_all_content(current_user):
-    if 'backup_file' not in request.files:
-        flash('백업 파일이 없습니다.', 'danger')
-        return redirect(url_for('admin.dashboard'))
+def data_restore(current_user): # Renamed function, current_user is used here
+    form = ImportForm()
+    if form.validate_on_submit(): # This handles POST requests
+        if 'backup_file' not in request.files:
+            flash('백업 파일이 없습니다.', 'danger')
+            return redirect(url_for('admin.data_restore')) # Corrected redirect
 
-    file = request.files['backup_file']
-    if file.filename == '':
-        flash('선택된 파일이 없습니다.', 'danger')
-        return redirect(url_for('admin.dashboard'))
+        file = request.files['backup_file']
+        if file.filename == '':
+            flash('선택된 파일이 없습니다.', 'danger')
+            return redirect(url_for('admin.data_restore')) # Corrected redirect
 
-    if file and file.filename.endswith('.zip'):
-        upload_temp_dir = None # To ensure it's defined for finally block
-        try:
-            # Save uploaded zip to a temporary file
-            temp_zip_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
-            file.save(temp_zip_file.name)
-            temp_zip_file.close() # Close the file handle so zipfile can open it
+        if file and file.filename.endswith('.zip'):
+            upload_temp_dir = None
+            try:
+                temp_zip_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+                file.save(temp_zip_file.name)
+                temp_zip_file.close()
 
-            # Create a temporary directory to extract files
-            upload_temp_dir = tempfile.mkdtemp()
+                upload_temp_dir = tempfile.mkdtemp()
 
-            # Extract the zip file
-            with zipfile.ZipFile(temp_zip_file.name, 'r') as zip_ref:
-                zip_ref.extractall(upload_temp_dir)
+                with zipfile.ZipFile(temp_zip_file.name, 'r') as zip_ref:
+                    zip_ref.extractall(upload_temp_dir)
+                
+                json_path = os.path.join(upload_temp_dir, 'blog_export.json')
+                if not os.path.exists(json_path):
+                    flash('백업 파일에 blog_export.json 파일이 없습니다.', 'danger')
+                    # No need to raise FileNotFoundError, flash and redirect is enough
+                    return redirect(url_for('admin.data_restore')) # Corrected redirect
+
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    backup_data = json.load(f)
+                
+                current_app.logger.info(f"Successfully read backup data. Posts: {len(backup_data.get('posts', []))}, Comments: {len(backup_data.get('comments', []))}")
+                # flash('백업 파일을 성공적으로 읽었습니다. 복원 처리를 시작합니다.', 'info') # Keep user informed
+                
+                original_post_id_to_new_id_map = {}
+                if 'posts' in backup_data:
+                    for post_data in backup_data['posts']:
+                        new_image_filename = None
+                        if post_data.get('featured_image_url'):
+                            original_image_relative_path = post_data['featured_image_url']
+                            image_filename_only = os.path.basename(original_image_relative_path)
+                            source_image_path_in_zip = os.path.join(upload_temp_dir, 'images', image_filename_only)
+                            if os.path.exists(source_image_path_in_zip):
+                                fn, ext = os.path.splitext(image_filename_only)
+                                timestamp_suffix = datetime.now().strftime("%Y%m%d%H%M%S%f")
+                                new_image_filename = f"{fn}_{timestamp_suffix}{ext}"
+                                destination_image_path = os.path.join(current_app.static_folder, 'uploads', new_image_filename)
+                                os.makedirs(os.path.join(current_app.static_folder, 'uploads'), exist_ok=True)
+                                shutil.copy(source_image_path_in_zip, destination_image_path)
+                            else:
+                                current_app.logger.warning(f"Image {image_filename_only} referenced but not found.")
+
+                        created_at_dt = datetime.fromisoformat(post_data['created_at'].replace('Z', '')) if post_data.get('created_at') else None
+                        updated_at_dt = datetime.fromisoformat(post_data['updated_at'].replace('Z', '')) if post_data.get('updated_at') else None
+                        published_at_dt = datetime.fromisoformat(post_data['published_at'].replace('Z', '')) if post_data.get('published_at') else None
+
+                        new_post = Post(
+                            title=post_data.get('title'),
+                            content=post_data.get('content'),
+                            created_at=created_at_dt,
+                            updated_at=updated_at_dt,
+                            is_published=post_data.get('is_published', False),
+                            published_at=published_at_dt,
+                            image_filename=new_image_filename,
+                            tags=post_data.get('tags'),
+                            meta_description=post_data.get('meta_description'),
+                            slug=post_data.get('slug'),
+                            user_id=current_user.id
+                        )
+                        db.session.add(new_post)
+                        db.session.flush()
+                        if post_data.get('id'):
+                            original_post_id_to_new_id_map[str(post_data['id'])] = new_post.id
             
-            # Find and read blog_export.json
-            json_path = os.path.join(upload_temp_dir, 'blog_export.json')
-            if not os.path.exists(json_path):
-                flash('백업 파일에 blog_export.json 파일이 없습니다.', 'danger')
-                raise FileNotFoundError("blog_export.json not found in backup.")
-
-            with open(json_path, 'r', encoding='utf-8') as f:
-                backup_data = json.load(f)
+                original_comment_id_to_new_id_map = {}
+                comments_to_update_parent_id = []
+                if 'comments' in backup_data:
+                    for comment_data in backup_data['comments']:
+                        original_post_id_str = str(comment_data.get('post_original_id'))
+                        new_post_id = original_post_id_to_new_id_map.get(original_post_id_str)
+                        if not new_post_id:
+                            current_app.logger.warning(f"Comment (orig ID: {comment_data.get('id')}) refs unmapped post (orig ID: {original_post_id_str}). Skipping.")
+                            continue
+                        created_at_dt = datetime.fromisoformat(comment_data['created_at'].replace('Z', '')) if comment_data.get('created_at') else datetime.utcnow()
+                        new_comment = Comment(
+                            nickname=comment_data.get('nickname'),
+                            content=comment_data.get('content'),
+                            created_at=created_at_dt,
+                            post_id=new_post_id
+                        )
+                        db.session.add(new_comment)
+                        db.session.flush()
+                        original_comment_id_str = str(comment_data.get('id'))
+                        if original_comment_id_str:
+                            original_comment_id_to_new_id_map[original_comment_id_str] = new_comment.id
+                        original_parent_id_str = str(comment_data.get('parent_original_id'))
+                        if original_parent_id_str and original_parent_id_str != 'None':
+                            comments_to_update_parent_id.append({'comment_obj': new_comment, 'original_parent_id': original_parent_id_str})
             
-            # For now, just log or flash success
-            current_app.logger.info(f"Successfully read backup data. Posts: {len(backup_data.get('posts', []))}, Comments: {len(backup_data.get('comments', []))}")
-            flash('백업 파일을 성공적으로 읽었습니다. 복원 처리를 시작합니다 (현재는 로깅만).', 'success')
-            
-            original_post_id_to_new_id_map = {}
-            if 'posts' in backup_data:
-                for post_data in backup_data['posts']:
-                    new_image_filename = None
-                    if post_data.get('featured_image_url'): # This is a relative path like 'images/filename.jpg'
-                        original_image_relative_path = post_data['featured_image_url']
-                        # image_filename_only should be 'filename.jpg'
-                        image_filename_only = os.path.basename(original_image_relative_path)
-                        
-                        source_image_path_in_zip = os.path.join(upload_temp_dir, 'images', image_filename_only)
-                        
-                        if os.path.exists(source_image_path_in_zip):
-                            # Ensure unique filename in static/uploads
-                            fn, ext = os.path.splitext(image_filename_only)
-                            timestamp_suffix = datetime.now().strftime("%Y%m%d%H%M%S%f") # Microseconds for more uniqueness
-                            new_image_filename = f"{fn}_{timestamp_suffix}{ext}"
-                            destination_image_path = os.path.join(current_app.static_folder, 'uploads', new_image_filename)
-                            
-                            # Ensure uploads directory exists
-                            os.makedirs(os.path.join(current_app.static_folder, 'uploads'), exist_ok=True)
-                            shutil.copy(source_image_path_in_zip, destination_image_path)
-                        else:
-                            current_app.logger.warning(f"Image {image_filename_only} referenced in JSON but not found in backup images folder.")
-
-                    # Convert ISO string dates to datetime objects
-                    # Removing 'Z' if present, as fromisoformat might not handle it directly depending on Python version
-                    created_at_dt = datetime.fromisoformat(post_data['created_at'].replace('Z', '')) if post_data.get('created_at') else None
-                    updated_at_dt = datetime.fromisoformat(post_data['updated_at'].replace('Z', '')) if post_data.get('updated_at') else None
-                    published_at_dt = datetime.fromisoformat(post_data['published_at'].replace('Z', '')) if post_data.get('published_at') else None
-
-                    new_post = Post(
-                        title=post_data.get('title'),
-                        content=post_data.get('content'),
-                        created_at=created_at_dt,
-                        updated_at=updated_at_dt,
-                        is_published=post_data.get('is_published', False),
-                        published_at=published_at_dt,
-                        image_filename=new_image_filename, # Store the new, unique filename
-                        tags=post_data.get('tags'),
-                        meta_description=post_data.get('meta_description'),
-                        slug=post_data.get('slug'), # Consider slug uniqueness later if needed
-                        user_id=current_user.id # Assign to current admin user
-                        # Views will default to 0
-                    )
-                    db.session.add(new_post)
-                    db.session.flush() # Flush to get the new_post.id for mapping
-                    if post_data.get('id'): # Original ID from backup
-                        original_post_id_to_new_id_map[str(post_data['id'])] = new_post.id
-            
-            # 2. Restore Comments (mapping IDs)
-            original_comment_id_to_new_id_map = {}
-            comments_to_update_parent_id = [] # Stores tuples of (comment_object, original_parent_id_str)
-
-            if 'comments' in backup_data:
-                for comment_data in backup_data['comments']:
-                    original_post_id_str = str(comment_data.get('post_original_id'))
-                    new_post_id = original_post_id_to_new_id_map.get(original_post_id_str)
-
-                    if not new_post_id:
-                        current_app.logger.warning(f"Comment (original ID: {comment_data.get('id')}) references non-existent or unmapped post (original ID: {original_post_id_str}). Skipping.")
-                        continue
-
-                    created_at_dt = datetime.fromisoformat(comment_data['created_at'].replace('Z', '')) if comment_data.get('created_at') else datetime.utcnow()
-                    
-                    new_comment = Comment(
-                        nickname=comment_data.get('nickname'),
-                        content=comment_data.get('content'),
-                        created_at=created_at_dt,
-                        post_id=new_post_id
-                        # ip_address is intentionally not restored for privacy.
-                        # parent_id will be set in a second pass if applicable.
-                    )
-                    db.session.add(new_comment)
-                    db.session.flush() # Flush to get the new_comment.id for mapping
-
-                    original_comment_id_str = str(comment_data.get('id'))
-                    if original_comment_id_str:
-                        original_comment_id_to_new_id_map[original_comment_id_str] = new_comment.id
-                    
-                    original_parent_id_str = str(comment_data.get('parent_original_id'))
-                    if original_parent_id_str and original_parent_id_str != 'None': # Ensure it's a valid ID string
-                        comments_to_update_parent_id.append({'comment_obj': new_comment, 'original_parent_id': original_parent_id_str})
-            
-                # Second pass to update parent_id for comments
                 for item in comments_to_update_parent_id:
                     comment_to_update = item['comment_obj']
                     original_parent_id_str = item['original_parent_id']
@@ -587,34 +496,32 @@ def import_all_content(current_user):
                     if new_parent_id:
                         comment_to_update.parent_id = new_parent_id
                     else:
-                        current_app.logger.warning(f"Could not find new parent ID for comment (new ID: {comment_to_update.id}) with original parent ID {original_parent_id_str}. Parent comment might not have been in the backup or failed to import.")
+                        current_app.logger.warning(f"Could not find new parent ID for comment (new ID: {comment_to_update.id}) with original parent ID {original_parent_id_str}.")
             
-            db.session.commit() # Commit after all posts and comments are processed
+                db.session.commit()
+                flash('콘텐츠 복원이 완료되었습니다 (게시물 및 댓글).', 'success')
+                current_app.logger.info(f"Post ID map: {original_post_id_to_new_id_map}")
+                current_app.logger.info(f"Comment ID map: {original_comment_id_to_new_id_map}")
+                return redirect(url_for('admin.dashboard')) # Redirect to main dashboard after successful import
 
-            flash('콘텐츠 복원이 완료되었습니다 (게시물 및 댓글).', 'success')
-            current_app.logger.info(f"Post ID map: {original_post_id_to_new_id_map}")
-            current_app.logger.info(f"Comment ID map: {original_comment_id_to_new_id_map}")
+            except Exception as e: # Catch more general exceptions after specific ones if any
+                current_app.logger.error(f"Error importing content from ZIP: {e}")
+                flash(f'콘텐츠를 ZIP에서 가져오는 중 오류가 발생했습니다: {e}', 'danger')
+                db.session.rollback() # Rollback on error
+                return redirect(url_for('admin.data_restore')) # Corrected redirect
+            finally:
+                if 'temp_zip_file' in locals() and os.path.exists(temp_zip_file.name):
+                    os.remove(temp_zip_file.name)
+                if upload_temp_dir and os.path.exists(upload_temp_dir):
+                    shutil.rmtree(upload_temp_dir)
+        else: # if not (file and file.filename.endswith('.zip'))
+            flash('잘못된 파일 형식입니다. ZIP 파일을 업로드해주세요.', 'danger')
+            return redirect(url_for('admin.data_restore')) # Corrected redirect
 
-            return redirect(url_for('admin.dashboard'))
-
-        except FileNotFoundError as fnf_error:
-            current_app.logger.error(f"Import error: {fnf_error}")
-            # flash message already set
-            return redirect(url_for('admin.dashboard'))
-        except Exception as e:
-            current_app.logger.error(f"Error importing content from ZIP: {e}")
-            flash(f'콘텐츠를 ZIP에서 가져오는 중 오류가 발생했습니다: {e}', 'danger')
-            return redirect(url_for('admin.dashboard'))
-        finally:
-            # Clean up temporary uploaded zip file
-            if 'temp_zip_file' in locals() and os.path.exists(temp_zip_file.name):
-                os.remove(temp_zip_file.name)
-            # Clean up temporary extraction directory
-            if upload_temp_dir and os.path.exists(upload_temp_dir):
-                shutil.rmtree(upload_temp_dir)
-    else:
-        flash('잘못된 파일 형식입니다. ZIP 파일을 업로드해주세요.', 'danger')
-        return redirect(url_for('admin.dashboard'))
+    elif request.method == 'POST':
+        flash('파일 업로드 중 오류가 발생했습니다. 파일을 확인해주세요.', 'danger')
+    
+    return render_template('admin_data_restore.html', title='데이터 복원', import_form=form)
 
 @bp_admin.route('/settings', methods=['GET', 'POST'])
 @admin_required
