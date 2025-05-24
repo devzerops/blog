@@ -100,9 +100,6 @@
                             <a class="nav-link" href="{{ url_for('admin.new_post') }}">새 글 작성</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ 'active' if request.endpoint == 'admin.image_management' else '' }}" href="{{ url_for('admin.image_management') }}">이미지 관리</a>
-                        </li>
-                        <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('auth.logout') }}">로그아웃 ({{ session.get('username', 'Admin') }})</a>
                         </li>
                     {% else %}

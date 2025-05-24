@@ -3,6 +3,7 @@ from app.models import Post
 from app.database import db # Import db
 from markupsafe import Markup # For rendering HTML content safely
 import os # Added: Import the 'os' module
+import re  # For regex operations to remove image tags
 
 bp_public = Blueprint('public', __name__)
 

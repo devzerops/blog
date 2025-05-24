@@ -52,6 +52,21 @@ body {
     color: #495057;
 }
 
+/* Custom styles for blog post cards */
+.blog-post-card .card-title a {
+    color: inherit; /* Make title link color same as card text */
+}
+
+.blog-post-card .card-title a:hover {
+    text-decoration: underline;
+}
+
+.blog-post-card .post-summary {
+    max-height: 4.5em; /* Approximately 3 lines, adjust if needed */
+    overflow: hidden;
+    margin-bottom: 1rem; /* Ensure consistent spacing */
+}
+
 /* Post Detail Page */
 .blog-post header h1 {
     color: #343a40;

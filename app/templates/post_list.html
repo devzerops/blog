@@ -29,7 +29,7 @@
                             작성자: {{ post.author_username }} | 작성일: {{ post.created_at.strftime('%Y년 %m월 %d일') }} | 조회수: {{ post.views }}
                         </p>
                         <div class="card-text mb-3 post-summary">
-                            {{ post.summary|safe }}
+                            {{ post.summary|strip_images|safe }}
                         </div>
                         {% set tag_list = post.tags.split(',') if post.tags else [] %}
                         {% if tag_list %}

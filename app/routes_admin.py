@@ -179,42 +179,6 @@ def uploaded_file(current_user, filename):
     # For now, assuming admin access implies access to all uploaded files for management.
     return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
 
-@bp_admin.route('/image-management')
-@token_required
-def image_management(current_user):
-    posts = Post.query.order_by(Post.created_at.desc()).all()
-    posts_with_images = []
-    for post in posts:
-        cover_image_url = None
-        if post.image_filename:
-            try:
-                cover_image_url = url_for('admin.uploaded_file', filename=post.image_filename, _external=True)
-            except Exception as e:
-                current_app.logger.error(f'Error generating URL for cover image {post.image_filename}: {e}')
-        
-        inline_images = []
-        if post.content:
-            # Regex to find Markdown image links: ![alt text](image_url)
-            matches = re.findall(r'!\[.*?\]\((.*?)\)', post.content) # Corrected regex
-            for url in matches:
-                if url.startswith(('http://', 'https://')):
-                    inline_images.append(url)
-                elif url.startswith('/static/uploads/'):
-                    try:
-                        static_path = url.split('/static/', 1)[-1] 
-                        inline_images.append(url_for('static', filename=static_path, _external=True))
-                    except Exception as e:
-                        current_app.logger.error(f'Error generating URL for static inline image \'{url}\': {e}')
-                # Consider other URL types if necessary
-
-        posts_with_images.append({
-            'id': post.id,
-            'title': post.title,
-            'cover_image_url': cover_image_url,
-            'inline_images': list(set(inline_images)) # Remove duplicates
-        })
-    return render_template('admin_image_management.html', title='이미지 관리', posts_data=posts_with_images, current_user=current_user)
-
 # For rich text editor image uploads (e.g., TinyMCE, CKEditor)
 @bp_admin.route('/upload_editor_image', methods=['POST'])
 @token_required
