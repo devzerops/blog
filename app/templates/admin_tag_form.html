@@ -1,0 +1,30 @@
+{% extends "admin_base.html" %}
+{% import "bootstrap_wtf.html" as wtf %}
+
+{% block admin_content %}
+<div class="container mt-4">
+    <h2>{{ title }}</h2>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="">
+        {{ form.hidden_tag() }} 
+        <div class="mb-3">
+            {{ wtf.form_field(form.name, class='form-control', placeholder='예: Python, Flask, 웹 개발') }}
+        </div>
+        <div class="mb-3">
+            {{ wtf.form_field(form.submit, class='btn btn-primary') }}
+            <a href="{{ url_for('admin.list_tags') }}" class="btn btn-secondary ms-2">취소</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

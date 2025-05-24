@@ -1,7 +1,7 @@
-from flask import Blueprint, render_template, request, current_app, abort, url_for, session, send_from_directory
-from app.models import Post
+from flask import Blueprint, render_template, request, current_app, abort, url_for, session, send_from_directory, redirect, flash
+from markupsafe import Markup # Import Markup from markupsafe
+from app.models import Post, Tag, db, User # Added User
 from app.database import db # Import db
-from markupsafe import Markup # For rendering HTML content safely
 import os # Added: Import the 'os' module
 import re  # For regex operations to remove image tags
 
@@ -22,7 +22,23 @@ def robots_txt():
 @bp_public.route('/posts')
 def post_list():
     page = request.args.get('page', 1, type=int)
-    posts_pagination = Post.query.order_by(Post.created_at.desc()).paginate(
+    search_query = request.args.get('q', None)
+    
+    query_obj = Post.query.filter(Post.is_published == True) # Show only published posts
+
+    if search_query:
+        search_term = f"%{search_query}%"
+        query_obj = query_obj.filter(
+            db.or_(
+                Post.title.ilike(search_term),
+                Post.content.ilike(search_term)
+            )
+        )
+        title = f'"{search_query}" 검색 결과'
+    else:
+        title = '블로그 게시글'
+
+    posts_pagination = query_obj.order_by(Post.created_at.desc()).paginate(
         page=page, per_page=current_app.config.get('POSTS_PER_PAGE', 10), error_out=False
     )
     posts_items = posts_pagination.items
@@ -54,11 +70,11 @@ def post_list():
             'views': post_item.views # Add views count
         })
         
-    return render_template('post_list.html', title='블로그 게시글', posts=processed_posts, pagination=posts_pagination)
+    return render_template('post_list.html', title=title, posts=processed_posts, pagination=posts_pagination, search_query=search_query)
 
 @bp_public.route('/posts/<int:post_id>')
 def post_detail(post_id):
-    post = Post.query.get_or_404(post_id)
+    post = Post.query.filter_by(id=post_id, is_published=True).first_or_404()
 
     # View counting logic
     viewed_posts_session_key = f'viewed_post_{post.id}'
@@ -82,24 +98,29 @@ def post_detail(post_id):
             image_url = url_for('static', filename=f'uploads/{post.image_filename}')
         # else: handle non-static UPLOAD_FOLDER serving if necessary
 
-    # Prepare tags
-    tags_list = post.tags.split(',') if post.tags else []
-
     return render_template('post_detail.html', 
                            title=post.title, 
                            post=post, 
                            html_content=html_content, 
                            image_url=image_url,
-                           tags_list=tags_list,
                            meta_description=meta_description) # Pass meta_description
 
 @bp_public.route('/tags/<string:tag_name>')
 def posts_by_tag(tag_name):
     page = request.args.get('page', 1, type=int)
-    # Case-insensitive search for tags
-    posts_pagination = Post.query.filter(Post.tags.ilike(f'%{tag_name}%'))\
-                                 .order_by(Post.created_at.desc())\
-                                 .paginate(page=page, per_page=current_app.config.get('POSTS_PER_PAGE', 10), error_out=False)
+    
+    # Find the tag object (case-insensitive)
+    tag = Tag.query.filter(db.func.lower(Tag.name) == db.func.lower(tag_name)).first()
+
+    if tag:
+        posts_pagination = Post.query.join(Post.tags).filter(Tag.id == tag.id, Post.is_published == True)\
+                                     .order_by(Post.created_at.desc())\
+                                     .paginate(page=page, per_page=current_app.config.get('POSTS_PER_PAGE', 10), error_out=False)
+    else:
+        # If tag doesn't exist, return an empty pagination object or handle as preferred
+        from flask_sqlalchemy.pagination import Pagination
+        posts_pagination = Pagination(None, page, current_app.config.get('POSTS_PER_PAGE', 10), 0, [])
+
     posts_items = posts_pagination.items
 
     processed_posts = []
@@ -113,11 +134,11 @@ def posts_by_tag(tag_name):
             'title': post_item.title,
             'created_at': post_item.created_at,
             'author_username': post_item.author.username,
-            'tags': post_item.tags, # Pass raw string, template will split
+            'tags': post_item.tags, # This is now a list of Tag objects
             'image_url': image_url,
-            'alt_text': post_item.alt_text if post_item.alt_text else post_item.title, # Add alt_text, fallback to title
-            'summary': Markup(post_item.content), # Display full HTML content for now
-            'views': post_item.views # Add views count
+            'alt_text': post_item.alt_text if post_item.alt_text else post_item.title, 
+            'summary': Markup(post_item.content), 
+            'views': post_item.views
         })
 
     return render_template('post_list.html', 

@@ -1,104 +1,127 @@
 {% extends "base.html" %}
 
+{% block title %}{{ title }}{% endblock %}
+
+{% block main_container_class %}container-fluid{% endblock %}
+
 {% block head_extra %}
     <!-- TinyMCE -->
     <script src="{{ url_for('static', filename='tinymce/tinymce.min.js') }}" referrerpolicy="origin"></script>
 {% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-10">
-        <h2>{{ title }}</h2>
-        <form method="POST" enctype="multipart/form-data">
-            {{ form.hidden_tag() }}
-            <div class="mb-3">
-                {{ form.title.label(class="form-label") }}
-                {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else ""), placeholder="글 제목") }}
-                {% if form.title.errors %}
-                    <div class="invalid-feedback">
-                        {% for error in form.title.errors %}
-                            <span>{{ error }}</span>
-                        {% endfor %}
+<div class="container-fluid mt-4">
+    <form method="POST" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+        <div class="row">
+            <!-- Main Content Column -->
+            <div class="col-lg-8 col-md-7">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3>{{ title }}</h3>
                     </div>
-                {% endif %}
-            </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.title.label(class="form-label") }}
+                            {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else ""), placeholder="글 제목") }}
+                            {% if form.title.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.title.errors %}
+                                        <span>{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
 
-            <div class="mb-3">
-                {{ form.content.label(class="form-label") }}
-                {{ form.content(class="form-control" + (" is-invalid" if form.content.errors else ""), rows=15, placeholder="Markdown 형식으로 내용을 입력하세요...", id="content", **{'data-autosave-key': (post_id if post_id else 'new')}) }}
-                {% if form.content.errors %}
-                    <div class="invalid-feedback">
-                        {% for error in form.content.errors %}
-                            <span>{{ error }}</span>
-                        {% endfor %}
+                        <div class="mb-3">
+                            {{ form.content.label(class="form-label") }}
+                            {{ form.content(class="form-control" + (" is-invalid" if form.content.errors else ""), rows=25, placeholder="Markdown 형식으로 내용을 입력하세요...", id="content", **{'data-autosave-key': (post_id if post_id else 'new')}) }}
+                            {% if form.content.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.content.errors %}
+                                        <span>{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
                     </div>
-                {% endif %}
-            </div>
-
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    {{ form.image.label(class="form-label") }}
-                    {{ form.image(class="form-control" + (" is-invalid" if form.image.errors else "")) }}
-                    {% if form.image.errors %}
-                        <div class="invalid-feedback">
-                            {% for error in form.image.errors %}
-                                <span>{{ error }}</span>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                    {% if current_image_url %}
-                        <div class="mt-2">
-                            <p>현재 이미지:</p>
-                            <img src="{{ current_image_url }}" alt="Current Image" style="max-width: 200px; max-height: 200px;">
-                        </div>
-                    {% elif post_id and not current_image_url and form.image.data is none %}
-                         <p class="mt-2 text-muted">업로드된 이미지가 없습니다.</p>
-                    {% endif %}
-                </div>
-                <div class="col-md-6 mb-3">
-                    {{ form.video_embed_url.label(class="form-label") }}
-                    {{ form.video_embed_url(class="form-control" + (" is-invalid" if form.video_embed_url.errors else ""), placeholder="예: https://www.youtube.com/watch?v=VIDEO_ID") }}
-                    {% if form.video_embed_url.errors %}
-                        <div class="invalid-feedback">
-                            {% for error in form.video_embed_url.errors %}
-                                <span>{{ error }}</span>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
                 </div>
             </div>
 
-            <div class="mb-3">
-                {{ form.alt_text.label(class="form-label") }}
-                {{ form.alt_text(class="form-control" + (" is-invalid" if form.alt_text.errors else ""), placeholder="이미지에 대한 설명을 입력하세요 (검색 엔진 및 접근성용)") }}
-                {% if form.alt_text.errors %}
-                    <div class="invalid-feedback">
-                        {% for error in form.alt_text.errors %}
-                            <span>{{ error }}</span>
-                        {% endfor %}
+            <!-- Sidebar Column -->
+            <div class="col-lg-4 col-md-5">
+                <div class="card sticky-top" style="top: 20px;"> 
+                    <div class="card-header">
+                        <h4>Publishing Options</h4>
                     </div>
-                {% endif %}
-            </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.image.label(class="form-label") }}
+                            {{ form.image(class="form-control" + (" is-invalid" if form.image.errors else "")) }}
+                            {% if form.image.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.image.errors %}
+                                        <span>{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if current_image_url %}
+                                <div class="mt-2">
+                                    <p class="mb-1"><small>Current Image:</small></p>
+                                    <img src="{{ current_image_url }}" alt="Current Image" class="img-fluid rounded" style="max-height: 150px;">
+                                </div>
+                            {% elif post_id and not current_image_url and form.image.data is none %}
+                                 <p class="mt-2 text-muted"><small>No image uploaded.</small></p>
+                            {% endif %}
+                        </div>
 
-            <div class="mb-3">
-                {{ form.tags.label(class="form-label") }}
-                {{ form.tags(class="form-control" + (" is-invalid" if form.tags.errors else ""), placeholder="예: python, flask, webdev") }}
-                <div class="form-text">쉼표(,)로 태그를 구분해주세요.</div>
-                {% if form.tags.errors %}
-                    <div class="invalid-feedback">
-                        {% for error in form.tags.errors %}
-                            <span>{{ error }}</span>
-                        {% endfor %}
+                        <div class="mb-3">
+                            {{ form.alt_text.label(class="form-label") }}
+                            {{ form.alt_text(class="form-control" + (" is-invalid" if form.alt_text.errors else ""), placeholder="Image alt text") }}
+                            {% if form.alt_text.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.alt_text.errors %}
+                                        <span>{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.video_embed_url.label(class="form-label") }}
+                            {{ form.video_embed_url(class="form-control" + (" is-invalid" if form.video_embed_url.errors else ""), placeholder="e.g., YouTube URL") }}
+                            {% if form.video_embed_url.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.video_embed_url.errors %}
+                                        <span>{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.tags.label(class="form-label") }}
+                            {{ form.tags(class="form-control" + (" is-invalid" if form.tags.errors else ""), placeholder="tag1, tag2, tag3") }}
+                            {% if form.tags.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.tags.errors %}
+                                        <span>{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
                     </div>
-                {% endif %}
+                    <div class="card-footer bg-transparent border-top-0">
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary me-md-2">Cancel</a>
+                            <button type="submit" name="save_draft" value="true" class="btn btn-info me-md-2">Save Draft</button>
+                            <button type="submit" name="publish" value="true" class="btn btn-primary">Publish</button>
+                        </div>
+                    </div>
+                </div>
             </div>
-            
-            <div class="d-flex justify-content-end">
-                <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary me-2">취소</a>
-                {{ form.submit(class="btn btn-primary") }}
-            </div>
-        </form>
-    </div>
+        </div>
+    </form>
 </div>
 {% endblock %}
 
@@ -125,7 +148,7 @@
             autosave_restore_when_empty: false,
             autosave_retention: '2m',
             image_advtab: true,
-            height: 600,
+            height: 750,
             image_caption: true,
             quickbars_selection_toolbar: 'bold italic | quicklink h2 h3 blockquote quickimage quicktable',
             noneditable_class: 'mceNonEditable',
