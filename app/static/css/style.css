@@ -5,7 +5,7 @@ body {
     /* Use Bootstrap CSS variables for easier theme switching */
     color: var(--bs-body-color);
     background-color: var(--bs-body-bg);
-    padding-top: 56px; /* Adjust if navbar height changes */
+    padding-top: 28px; /* Adjust if navbar height changes */
 }
 
 /* Navbar Enhancements */
@@ -359,4 +359,75 @@ div.code-toolbar > .toolbar .toolbar-item > span:focus {
     background-color: var(--bs-gray-700);
     color: var(--bs-light);
     border-color: var(--bs-gray-600);
+}
+
+/* Custom styles for enlarged navbar */
+.navbar-enlarged {
+    padding-top: 1rem; /* Increase top padding */
+    padding-bottom: 1rem; /* Increase bottom padding */
+}
+
+.navbar-enlarged .navbar-brand {
+    font-size: 1.5em; /* Increase brand font size ~20% */
+}
+
+.navbar-enlarged .nav-link {
+    font-size: 1.1em; /* Increase nav link font size ~10% */
+}
+
+.navbar-enlarged .form-control-sm {
+    font-size: 0.95rem; /* Slightly larger search input */
+    padding: 0.3rem 0.6rem;
+}
+
+.navbar-enlarged .btn-sm {
+    font-size: 0.95rem; /* Slightly larger search button */
+    padding: 0.3rem 0.6rem;
+}
+
+/*
+.navbar-enlarged .navbar-collapse form[role="search"] input.form-control-sm[name="q"] {
+    min-width: 280px !important; 
+    width: 280px !important; 
+    background-color: yellow !important; 
+}
+*/
+
+.navbar-enlarged .navbar-collapse form[role="search"].d-flex {
+    width: 600px !important; /* Target width for the form */
+}
+
+.navbar-enlarged .navbar-collapse form[role="search"].d-flex input[name="q"].form-control-sm {
+    width: 100% !important;
+}
+
+/* Adjust container width within the enlarged navbar */
+/* Default Bootstrap .container max-widths:
+   sm: 540px, md: 720px, lg: 960px, xl: 1140px, xxl: 1320px
+   We'll increase these by roughly 30% */
+
+@media (min-width: 576px) {
+    .navbar-enlarged .container {
+        max-width: calc(540px * 1.3); /* ~702px */
+    }
+}
+@media (min-width: 768px) {
+    .navbar-enlarged .container {
+        max-width: calc(720px * 1.3); /* ~936px */
+    }
+}
+@media (min-width: 992px) {
+    .navbar-enlarged .container {
+        max-width: calc(960px * 1.3); /* ~1248px */
+    }
+}
+@media (min-width: 1200px) {
+    .navbar-enlarged .container {
+        max-width: calc(1140px * 1.3); /* ~1482px */
+    }
+}
+@media (min-width: 1400px) {
+    .navbar-enlarged .container {
+        max-width: calc(1320px * 1.3); /* ~1716px */
+    }
 }
