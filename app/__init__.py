@@ -1,5 +1,5 @@
 import os
-from flask import Flask
+from flask import Flask, request
 from flask_migrate import Migrate
 from markupsafe import Markup
 from config import Config
@@ -74,6 +74,37 @@ def create_app(config_class=Config):
 
     from app.routes_public import bp_public
     app.register_blueprint(bp_public) 
+
+    # Import PageView model here to avoid circular import if it was at the top
+    from app.models import PageView
+
+    @app.after_request
+    def log_page_view(response):
+        # Avoid logging for static files or if the request had an error (e.g., 404 for static might still try to log)
+        if request.path.startswith('/static') or response.status_code // 100 != 2:
+            return response
+
+        try:
+            post_id = None
+            # If we want to associate views with specific posts, 
+            # we might need to access view_args if a post_id is part of the URL.
+            # For example, if a view function for a post detail page is called, 
+            # request.view_args might contain {'post_id': 123}
+            # This part needs careful implementation based on how post_id is available.
+            # For now, we'll leave post_id as None for general page views.
+
+            page_view = PageView(
+                path=request.path,
+                ip_address=request.remote_addr,
+                user_agent=request.user_agent.string,
+                post_id=post_id # This will be None for now
+            )
+            db.session.add(page_view)
+            db.session.commit()
+        except Exception as e:
+            app.logger.error(f"Error logging page view: {e}")
+            db.session.rollback() # Rollback in case of error
+        return response
 
     @app.context_processor
     def inject_current_year():

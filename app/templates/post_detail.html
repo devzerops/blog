@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% import "bootstrap_wtf.html" as wtf %}
+{% from 'bootstrap5/form.html' import render_field %}
 
 {% block title %}{{ post.title }}{% endblock %}
 {% block meta_description %}{{ meta_description if meta_description else post.title }}{% endblock %}
@@ -98,7 +98,7 @@
         <section id="comments" class="my-5">
             <h3 class="mb-4">댓글 ({{ comments|length }})</h3>
 
-            {% macro render_comment_node(comment, post_id, comment_form, wtf) %}
+            {% macro render_comment_node(comment, post_id, comment_form) %}
                 <div class="card mb-3 shadow-sm {% if comment.parent_id %}ms-4 mt-2{% endif %}">
                     <div class="card-body">
                         <h5 class="card-title">{{ comment.nickname }}</h5>
@@ -115,8 +115,8 @@
                             <form method="POST" action="{{ url_for('public.add_comment', post_id=post_id) }}" novalidate>
                                 {{ comment_form.hidden_tag() }}
                                 <input type="hidden" name="parent_id" value="{{ comment.id }}">
-                                {{ wtf.form_field(comment_form.nickname, class="form-control mb-2", placeholder="Nickname") }}
-                                {{ wtf.form_field(comment_form.content, class="form-control mb-2", rows=3, placeholder="Write a reply...") }}
+                                {{ render_field(comment_form.nickname, class="form-control mb-2", placeholder="Nickname") }}
+                                {{ render_field(comment_form.content, class="form-control mb-2", rows=3, placeholder="Write a reply...") }}
                                 <button type="submit" class="btn btn-primary btn-sm mt-2">Submit Reply</button>
                             </form>
                         </div>
@@ -124,7 +124,7 @@
                         {# Render replies recursively #}
                         {% if comment.replies %}
                             {% for reply in comment.replies.all() %}{# .all() because lazy='dynamic' #}
-                                {{ render_comment_node(reply, post_id, comment_form, wtf) }}
+                                {{ render_comment_node(reply, post_id, comment_form) }}
                             {% endfor %}
                         {% endif %}
                     </div>
@@ -134,7 +134,7 @@
             {# Display Existing Comments - Updated to use the macro #}
             {% if comments %}
                 {% for comment in comments %}
-                    {{ render_comment_node(comment, post.id, comment_form, wtf) }}
+                    {{ render_comment_node(comment, post.id, comment_form) }}
                 {% endfor %}
             {% else %}
                 <p>아직 댓글이 없습니다. 첫 댓글을 남겨주세요!</p>
@@ -145,8 +145,8 @@
                 <h4>댓글 남기기</h4>
                 <form method="POST" action="{{ url_for('public.add_comment', post_id=post.id) }}" novalidate>
                     {{ comment_form.hidden_tag() }}
-                    {{ wtf.form_field(comment_form.nickname, class="form-control mb-2") }}
-                    {{ wtf.form_field(comment_form.content, class="form-control mb-2", rows=4) }}
+                    {{ render_field(comment_form.nickname, class="form-control mb-2") }}
+                    {{ render_field(comment_form.content, class="form-control mb-2", rows=4) }}
                     <button type="submit" class="btn btn-primary mt-2">{{ comment_form.submit.label.text }}</button>
                 </form>
             </div>

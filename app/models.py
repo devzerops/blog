@@ -35,6 +35,7 @@ class Post(db.Model):
     comments = db.relationship('Comment', backref='post', lazy='dynamic', cascade='all, delete-orphan')
     tags = db.Column(db.String(255), nullable=True) 
     slug = db.Column(db.String(250), unique=True, nullable=True, index=True) 
+    page_views = db.relationship('PageView', backref='post', lazy='dynamic')
 
     def __repr__(self):
         return f'<Post {self.title[:50]}...>'
@@ -59,3 +60,15 @@ class Comment(db.Model):
 
     def __repr__(self):
         return f'<Comment {self.id} by {self.nickname}>'
+
+class PageView(db.Model):
+    __tablename__ = 'page_view'
+    id = db.Column(db.Integer, primary_key=True)
+    path = db.Column(db.String(255), nullable=False)
+    ip_address = db.Column(db.String(45), nullable=True)  # For IPv4 or IPv6
+    user_agent = db.Column(db.String(255), nullable=True)
+    timestamp = db.Column(db.DateTime, index=True, default=lambda: datetime.now(timezone.utc))
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=True)
+
+    def __repr__(self):
+        return f'<PageView {self.path} at {self.timestamp}>'

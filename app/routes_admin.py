@@ -1,15 +1,15 @@
 from flask import (
     Blueprint, render_template, redirect, url_for, 
-    request, flash, current_app, send_from_directory, jsonify, session, Response, abort, send_file
+    request, flash, current_app, send_from_directory, jsonify, session, Response, abort, send_file, make_response
 )
 from app.auth import token_required # Keep for reference if needed, but new logic below
-from app.models import Post, User, Comment # Removed Tag, Added User, Comment
+from app.models import Post, User, Comment, PageView # Added PageView
 from app.forms import PostForm, SettingsForm, DeleteForm, ImportForm # Added ImportForm
 from app.database import db
 from werkzeug.utils import secure_filename
 import os
 # import markdown # Not needed for admin routes directly, but for public display
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta # Added timedelta, timezone
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, SubmitField, FileField, URLField, BooleanField
 from wtforms.validators import DataRequired, Length, Optional, URL as URLValidator # Renamed to avoid conflict
@@ -23,6 +23,7 @@ import zipfile
 import tempfile
 import os
 import shutil
+from sqlalchemy import func # Added func
 
 bp_admin = Blueprint('admin', __name__)
 
@@ -522,6 +523,28 @@ def data_restore(current_user): # Renamed function, current_user is used here
         flash('파일 업로드 중 오류가 발생했습니다. 파일을 확인해주세요.', 'danger')
     
     return render_template('admin_data_restore.html', title='데이터 복원', import_form=form)
+
+@bp_admin.route('/site-stats')
+@admin_required
+def site_stats(current_user):
+    today_start_utc = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    total_views_today = db.session.query(func.count(PageView.id)).filter(PageView.timestamp >= today_start_utc).scalar()
+    total_comments_today = db.session.query(func.count(Comment.id)).filter(Comment.created_at >= today_start_utc).scalar()
+
+    # For 'currently active users' - this is a placeholder. 
+    # Real active user tracking is more complex (e.g., using sessions with last_seen timestamps or Redis).
+    # For now, we can show the number of unique IPs that viewed pages in the last 5 minutes as a proxy.
+    five_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
+    active_users_approx = db.session.query(func.count(func.distinct(PageView.ip_address)))\
+                                  .filter(PageView.timestamp >= five_minutes_ago).scalar()
+
+    return render_template('admin_site_stats.html', 
+                           title='사이트 통계',
+                           total_views_today=total_views_today,
+                           total_comments_today=total_comments_today,
+                           active_users_approx=active_users_approx,
+                           current_user=current_user)
 
 @bp_admin.route('/settings', methods=['GET', 'POST'])
 @admin_required

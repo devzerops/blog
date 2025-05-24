@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block main_container_class %}container-fluid{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2><i class="bi bi-bar-chart-line-fill me-2"></i>{{ title }}</h2>
+    <p>현재 사이트의 주요 활동 지표입니다.</p>
+
+    <div class="row mt-4">
+        <div class="col-md-4 mb-3">
+            <div class="card text-white bg-primary h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title mb-0">오늘의 총 조회수</h5>
+                            <p class="card-text fs-2 fw-bold">{{ total_views_today if total_views_today is not none else 0 }}</p>
+                        </div>
+                        <i class="bi bi-eye-fill fs-1 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card text-white bg-success h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title mb-0">오늘의 총 댓글 수</h5>
+                            <p class="card-text fs-2 fw-bold">{{ total_comments_today if total_comments_today is not none else 0 }}</p>
+                        </div>
+                        <i class="bi bi-chat-dots-fill fs-1 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card text-dark bg-warning h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title mb-0">현재 활동 중 사용자 (추정)</h5>
+                            <p class="card-text fs-2 fw-bold">{{ active_users_approx if active_users_approx is not none else 0 }}</p>
+                            <small class="text-muted">(최근 5분 내 고유 IP 기준)</small>
+                        </div>
+                        <i class="bi bi-people-fill fs-1 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left-circle me-1"></i> 관리자 대시보드로 돌아가기</a>
+    </div>
+
+</div>
+{% endblock %}
