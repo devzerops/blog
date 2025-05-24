@@ -10,6 +10,7 @@
 
 <a href="{{ url_for('admin.new_post') }}" class="btn btn-success mb-3">새 글 작성</a>
 <a href="{{ url_for('admin.export_content') }}" class="btn btn-info mb-3 ms-2">콘텐츠 내보내기 (JSON)</a>
+<a href="{{ url_for('admin.export_all_content') }}" class="btn btn-secondary mb-3 ms-2">사이트 전체 콘텐츠 내보내기 (JSON)</a>
 
 {% if posts %}
 <div class="table-responsive">
