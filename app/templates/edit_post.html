@@ -256,15 +256,59 @@
 
                         <div class="mb-3">
                             {{ form.tags.label(class="form-label") }}
-                            {{ form.tags(class="form-control" + (" is-invalid" if form.tags.errors else ""), placeholder="tag1, tag2, tag3") }}
+                            <div class="tag-input-container">
+                                <div class="tags-container form-control d-flex flex-wrap gap-1 p-1" id="tags-display">
+                                    <!-- Tags will be displayed here -->
+                                    <input type="text" id="tag-input" class="tag-input flex-grow-1 border-0" placeholder="입력 후 Tab키 누르면 태그 추가" style="outline: none; min-width: 100px;">
+                                </div>
+                                {{ form.tags(class="d-none" + (" is-invalid" if form.tags.errors else ""), id="actual-tags-input") }}
+                                <small class="form-text text-muted">태그를 입력하고 Tab 키를 누르면 태그가 추가됩니다.</small>
+                            </div>
                             {% if form.tags.errors %}
-                                <div class="invalid-feedback">
+                                <div class="invalid-feedback d-block">
                                     {% for error in form.tags.errors %}
                                         <span>{{ error }}</span>
                                     {% endfor %}
                                 </div>
                             {% endif %}
                         </div>
+                        
+                        <!-- 태그 입력을 위한 CSS 스타일 -->
+                        <style>
+                            .tag-item {
+                                background-color: #375a7f; /* 어두운 테마에 맞는 태그 배경색 */
+                                color: #fff; /* 태그 텍스트 색상 */
+                                border-radius: 4px;
+                                padding: 3px 10px;
+                                margin-right: 5px;
+                                margin-bottom: 5px;
+                                display: inline-flex;
+                                align-items: center;
+                            }
+                            .tag-remove {
+                                margin-left: 8px;
+                                cursor: pointer;
+                                font-weight: bold;
+                                color: #adb5bd; /* 삭제 버튼 색상 */
+                            }
+                            .tag-remove:hover {
+                                color: #fff; /* 호버 시 삭제 버튼 색상 */
+                            }
+                            .tag-input {
+                                background: transparent;
+                                color: #fff; /* 입력창 텍스트 색상 */
+                            }
+                            .tags-container {
+                                background-color: #222; /* 태그 컨테이너 배경색 */
+                                border-color: #444;
+                                color: #fff;
+                            }
+                            .tags-container:focus-within {
+                                border-color: #375a7f; /* 포커스 시 테두리 색상 */
+                                outline: 0;
+                                box-shadow: 0 0 0 0.25rem rgba(55, 90, 127, 0.25);
+                            }
+                        </style>
                     </div>
                     <div class="card-footer bg-transparent border-top-0">
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
@@ -282,6 +326,92 @@
 
 {% block scripts_extra %}
 <script>
+    // 태그 입력 처리 스크립트
+    document.addEventListener('DOMContentLoaded', function() {
+        const tagInput = document.getElementById('tag-input');
+        const tagsContainer = document.getElementById('tags-display');
+        const actualTagsInput = document.getElementById('actual-tags-input');
+        
+        // 기존 태그가 있으면 로드
+        loadExistingTags();
+        
+        // Tab 키를 사용해 태그 추가 처리
+        tagInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Tab') {
+                e.preventDefault(); // 기본 Tab 동작 차단
+                addTag();
+            } else if (e.key === 'Enter') {
+                // Enter 키도 태그 추가로 처리하지만 폼 제출은 방지
+                e.preventDefault();
+                addTag();
+            } else if (e.key === 'Backspace' && tagInput.value === '') {
+                // 입력창이 비어있고 Backspace를 누르면 마지막 태그 삭제
+                const tags = tagsContainer.querySelectorAll('.tag-item');
+                if (tags.length > 0) {
+                    removeTag(tags[tags.length - 1]);
+                }
+            }
+        });
+        
+        // 태그 추가 함수
+        function addTag() {
+            const tagValue = tagInput.value.trim();
+            if (tagValue) {
+                createTagElement(tagValue);
+                tagInput.value = '';
+                updateActualInput();
+            }
+        }
+        
+        // 태그 삭제 함수
+        function removeTag(tagElement) {
+            tagsContainer.removeChild(tagElement);
+            updateActualInput();
+        }
+        
+        // 태그 요소 생성 함수
+        function createTagElement(tagText) {
+            const tagElement = document.createElement('span');
+            tagElement.className = 'tag-item';
+            tagElement.innerHTML = `
+                ${tagText}
+                <span class="tag-remove">&times;</span>
+            `;
+            
+            // 삭제 버튼 이벤트 추가
+            const removeButton = tagElement.querySelector('.tag-remove');
+            removeButton.addEventListener('click', function() {
+                removeTag(tagElement);
+            });
+            
+            // 태그 입력 필드 앞에 태그 추가
+            tagsContainer.insertBefore(tagElement, tagInput);
+        }
+        
+        // 실제 폼 입력값 업데이트
+        function updateActualInput() {
+            const tags = [];
+            tagsContainer.querySelectorAll('.tag-item').forEach(function(tag) {
+                const tagText = tag.textContent.trim().replace('×', '').trim();
+                if (tagText) tags.push(tagText);
+            });
+            
+            // 콌마로 구분된 텍스트 형태로 저장 (백엔드 호환성)
+            actualTagsInput.value = tags.join(', ');
+            console.log('태그 업데이트:', actualTagsInput.value);
+        }
+        
+        // 기존 태그 로드 함수
+        function loadExistingTags() {
+            if (actualTagsInput.value) {
+                const existingTags = actualTagsInput.value.split(',').map(tag => tag.trim());
+                existingTags.forEach(tag => {
+                    if (tag) createTagElement(tag);
+                });
+            }
+        }
+    });
+    
     // 전역 변수로 정의된 window.ADMIN_TOKEN 사용
 
     document.addEventListener('DOMContentLoaded', function() {
