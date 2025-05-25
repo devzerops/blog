@@ -24,6 +24,9 @@
     <!-- 코드 블록 하이라이팅을 위한 highlight.js 추가 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <!-- Mermaid 다이어그램 지원을 위한 라이브러리 추가 -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
     <!-- 이미지 레이아웃 스타일 추가 -->
     <style>
         /* 이미지 스타일 - 왼쪽 정렬 */
@@ -587,6 +590,7 @@
                 codeBlock: {
                     languages: [
                         { language: 'plaintext', label: '일반 텍스트' },
+                        { language: 'mermaid', label: 'Mermaid 다이어그램' },
                         { language: 'c', label: 'C' },
                         { language: 'cs', label: 'C#' },
                         { language: 'cpp', label: 'C++' },
@@ -982,8 +986,30 @@
                     
                     // 코드 하이라이팅 적용
                     markdownPreview.querySelectorAll('pre code').forEach((block) => {
-                        hljs.highlightElement(block);
+                        // Mermaid 코드 블록인지 확인
+                        if (block.className.includes('language-mermaid')) {
+                            // Mermaid 다이어그램 처리
+                            const preElement = block.parentElement;
+                            const content = block.textContent.trim();
+                            const div = document.createElement('div');
+                            div.className = 'mermaid';
+                            div.innerHTML = content;
+                            preElement.replaceWith(div);
+                        } else {
+                            // 일반 코드 블록 하이라이팅
+                            hljs.highlightElement(block);
+                        }
                     });
+                    
+                    // Mermaid 다이어그램 초기화 및 렌더링
+                    setTimeout(() => {
+                        mermaid.initialize({
+                            startOnLoad: true,
+                            theme: 'dark',
+                            securityLevel: 'loose'
+                        });
+                        mermaid.init(undefined, markdownPreview.querySelectorAll('.mermaid'));
+                    }, 100);
                     
                     // 미리보기 표시/숨김 토글
                     if (markdownPreview.style.display === 'none') {

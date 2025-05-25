@@ -360,9 +360,50 @@
 {% block scripts_extra %}
     <!-- Prism JS for syntax highlighting -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    
+    <!-- Mermaid 다이어그램 지원을 위한 라이브러리 -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    
+    <!-- Mermaid 다이어그램 초기화 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Mermaid 초기화
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: 'dark',
+                securityLevel: 'loose',
+                fontFamily: '"Fira Code", monospace',
+                fontSize: 16
+            });
+            
+            // pre.mermaid 태그를 찾아서 처리
+            document.querySelectorAll('pre.mermaid, pre > code.language-mermaid').forEach(function(element) {
+                if (element.tagName === 'CODE') {
+                    // code.language-mermaid 태그인 경우 부모 pre 태그를 처리
+                    let preElement = element.parentElement;
+                    let content = element.textContent.trim();
+                    let div = document.createElement('div');
+                    div.className = 'mermaid';
+                    div.innerHTML = content;
+                    preElement.replaceWith(div);
+                } else if (element.tagName === 'PRE') {
+                    // pre.mermaid 태그인 경우
+                    let content = element.textContent.trim();
+                    let div = document.createElement('div');
+                    div.className = 'mermaid';
+                    div.innerHTML = content;
+                    element.replaceWith(div);
+                }
+            });
+            
+            // Mermaid 다이어그램 다시 렌더링
+            mermaid.init(undefined, document.querySelectorAll('.mermaid'));
+        });
+    </script>
     
     <!-- 목차(Table of Contents) 생성을 위한 스크립트 -->
     <script>
