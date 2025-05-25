@@ -5,8 +5,108 @@
 {% block main_container_class %}container-fluid{% endblock %}
 
 {% block head_extra %}
-    <!-- TinyMCE -->
-    <script src="{{ url_for('static', filename='tinymce/tinymce.min.js') }}" referrerpolicy="origin"></script>
+    <!-- 인증 토큰과 CSRF 토큰을 전역 변수로 정의 -->
+    <script>
+        // 인증 토큰과 CSRF 토큰을 전역변수로 정의
+        window.ADMIN_TOKEN = "{{ session.get('admin_token', '') }}";
+        window.CSRF_TOKEN = "{{ csrf_token() }}";
+        console.log('토큰 상태:', window.ADMIN_TOKEN ? '토큰 있음' : '토큰 없음');
+        console.log('CSRF 토큰 상태:', window.CSRF_TOKEN ? 'CSRF 토큰 있음' : 'CSRF 토큰 없음');
+    </script>
+    
+    <!-- CKEditor 5 - 더 많은 기능이 포함된 Balloon 빌드 사용 -->
+    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/balloon-block/ckeditor.js"></script>
+    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/balloon-block/translations/ko.js"></script>
+    
+    <!-- CKEditor 이미지 업로드 어댑터 -->
+    <script>
+        
+        class CustomUploadAdapter {
+            constructor(loader) {
+                this.loader = loader;
+            }
+
+            upload() {
+                return this.loader.file.then(file => {
+                    return new Promise((resolve, reject) => {
+                        const data = new FormData();
+                        data.append('file', file);
+                        
+                        // CSRF 토큰 추가 - Flask-WTF CSRF 보호를 위해 필수
+                        if (window.CSRF_TOKEN) {
+                            data.append('csrf_token', window.CSRF_TOKEN);
+                            console.log('CSRF 토큰이 요청에 추가됨');
+                        }
+
+                        // 서버에 요청 보내기
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('POST', '{{ url_for("admin.upload_editor_image") }}');
+                        
+                        // 인증 토큰 추가 - 전역변수 window.ADMIN_TOKEN 사용
+                        if (window.ADMIN_TOKEN) {
+                            xhr.setRequestHeader('Authorization', 'Bearer ' + window.ADMIN_TOKEN);
+                            console.log('인증 토큰 전송 완료');
+                        } else {
+                            console.error('인증 토큰이 없습니다.');
+                            reject('인증 토큰이 없습니다. 로그아웃 되었을 수 있으니 다시 로그인해주세요.');
+                            return;
+                        }
+                        
+                        // 응답 처리
+                        xhr.onload = () => {
+                            console.log('서버 응답:', xhr.status, xhr.responseText);
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                try {
+                                    const response = JSON.parse(xhr.responseText);
+                                    if (response && response.location) {
+                                        resolve({ default: response.location });
+                                    } else {
+                                        reject('유효한 이미지 URL이 없습니다: ' + xhr.responseText);
+                                    }
+                                } catch (e) {
+                                    reject('서버 응답을 처리하는 중 오류 발생: ' + e.message);
+                                }
+                            } else {
+                                reject('업로드 실패. 서버 상태: ' + xhr.status + ', 응답: ' + xhr.responseText);
+                            }
+                        };
+                        
+                        // 오류 처리
+                        xhr.onerror = () => {
+                            console.error('네트워크 오류 발생');
+                            reject('네트워크 오류로 업로드 실패');
+                        };
+                        
+                        // 요청 전송
+                        xhr.send(data);
+                    });
+                });
+            }
+
+            abort() {
+                // 업로드 취소 로직 (필요시 구현)
+            }
+        }
+
+        function CustomUploadAdapterPlugin(editor) {
+            editor.plugins.get('FileRepository').createUploadAdapter = (loader) => {
+                return new CustomUploadAdapter(loader);
+            };
+        }
+    </script>
+    <style>
+        /* CKEditor 스타일 */
+        .ck-editor__editable {
+            min-height: 750px;
+            max-height: 750px;
+            overflow-y: auto;
+        }
+        
+        /* 이미지 업로드 영역 스타일 */
+        .ck-file-dialog-button {
+            display: block;
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
@@ -35,7 +135,8 @@
 
                         <div class="mb-3">
                             {{ form.content.label(class="form-label") }}
-                            {{ form.content(class="form-control" + (" is-invalid" if form.content.errors else ""), rows=25, placeholder="Markdown 형식으로 내용을 입력하세요...", id="content", **{'data-autosave-key': (post_id if post_id else 'new')}) }}
+                            {{ form.content(class="form-control d-none" + (" is-invalid" if form.content.errors else ""), rows=25, placeholder="내용을 입력하세요...", id="content", **{'data-autosave-key': (post_id if post_id else 'new')}) }}
+                            <div id="editor">{{ form.content.data|safe if form.content.data else '' }}</div>
                             {% if form.content.errors %}
                                 <div class="invalid-feedback">
                                     {% for error in form.content.errors %}
@@ -139,126 +240,96 @@
 
 {% block scripts_extra %}
 <script>
-    // Make the admin token available to JavaScript
-    const ADMIN_TOKEN = "{{ admin_token | default('') }}";
+    // 전역 변수로 정의된 window.ADMIN_TOKEN 사용
 
-    document.addEventListener('DOMContentLoaded', function(){
+    document.addEventListener('DOMContentLoaded', function() {
         const contentElement = document.getElementById('content');
-        const autosaveKey = contentElement.dataset.autosaveKey;    
+        const autosaveKey = contentElement.dataset.autosaveKey;
 
-        // Add event listener to form submission to trigger TinyMCE save
-        document.querySelector('form').addEventListener('submit', function(e) {
-            // First prevent default submission to handle validation ourselves
-            e.preventDefault();
-            
-            // Save TinyMCE content to form field
-            tinymce.triggerSave();
-            
-            // Check if content is empty and show validation error if needed
-            const contentField = document.getElementById('content');
-            if (!contentField.value.trim()) {
-                // Show validation error
-                contentField.classList.add('is-invalid');
-                if (!contentField.nextElementSibling || !contentField.nextElementSibling.classList.contains('invalid-feedback')) {
-                    const errorDiv = document.createElement('div');
-                    errorDiv.className = 'invalid-feedback';
-                    errorDiv.innerHTML = '<span>This field is required.</span>';
-                    contentField.parentNode.insertBefore(errorDiv, contentField.nextSibling);
-                }
-                return;
-            } else {
-                // Remove any validation error
-                contentField.classList.remove('is-invalid');
-                const errorDiv = contentField.nextElementSibling;
-                if (errorDiv && errorDiv.classList.contains('invalid-feedback')) {
-                    errorDiv.remove();
-                }
-            }
-            
-            // Submit the form
-            this.submit();
-        });
-
-        tinymce.init({
-            selector: '#content',
-            license_key: 'gpl', // Add license key for open source usage
-            skin: 'oxide-dark', // Modern dark skin for the UI
-            content_css: 'dark', // Dark theme for the content area
-            ui_mode: 'split', // Separates menubar and toolbar
-            plugins: 'preview importcss searchreplace autolink autosave save directionality code visualblocks visualchars fullscreen image link media codesample table charmap pagebreak nonbreaking anchor insertdatetime advlist lists wordcount help charmap quickbars emoticons',
-            menubar: 'file edit view insert format tools table help',
-            toolbar: 'undo redo | bold italic underline strikethrough | fontfamily fontsize blocks | alignleft aligncenter alignright alignjustify | outdent indent |  numlist bullist | forecolor backcolor removeformat | pagebreak | charmap emoticons | fullscreen  preview save print | insertfile image media link anchor codesample | ltr rtl',
-            toolbar_sticky: true,
-            autosave_ask_before_unload: true,
-            autosave_interval: '30s',
-            autosave_prefix: 'tinymce-autosave-' + autosaveKey + '-',
-            autosave_restore_when_empty: false,
-            autosave_retention: '2m',
-            image_advtab: true,
-            height: 750,
-            image_caption: true,
-            quickbars_selection_toolbar: 'bold italic | quicklink h2 h3 blockquote quickimage quicktable',
-            noneditable_class: 'mceNonEditable',
-            toolbar_mode: 'sliding',
-            contextmenu: 'link image table',
-            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:16px }',
-            
-            // Image Upload Configuration
-            images_upload_url: '{{ url_for("admin.upload_editor_image") }}', // We'll use images_upload_handler to add token
-            automatic_uploads: false, // We trigger upload manually in handler or let the handler do it
-
-            images_upload_handler: function (blobInfo, success, failure, progress) {
-                var xhr, formData;
-
-                xhr = new XMLHttpRequest();
-                xhr.withCredentials = false; // Important if you're not using cookies for auth
-                xhr.open('POST', '{{ url_for("admin.upload_editor_image") }}');
-                
-                var token = ADMIN_TOKEN;
-                if (!token) {
-                    failure('인증 토큰을 찾을 수 없습니다. 다시 로그인해주세요.');
-                    return;
-                }
-                xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-                // Do not set Content-Type for FormData, browser will do it with boundary
-
-                xhr.upload.onprogress = function (e) {
-                    progress(e.loaded / e.total * 100);
-                };
-
-                xhr.onload = function() {
-                    var json;
-
-                    if (xhr.status < 200 || xhr.status >= 300) {
-                        try {
-                            json = JSON.parse(xhr.responseText);
-                            failure('HTTP Error: ' + xhr.status + ' - ' + (json && json.error && json.error.message ? json.error.message : 'Unknown error'));
-                        } catch (e) {
-                            failure('HTTP Error: ' + xhr.status + '. Invalid JSON response: ' + xhr.responseText);
+        // CKEditor Balloon-Block 초기화
+        BalloonEditor
+            .create(document.querySelector('#editor'), {
+                placeholder: '내용을 입력하세요...',
+                language: 'ko',
+                // 커스텀 업로드 어댑터 플러그인 사용
+                extraPlugins: [ CustomUploadAdapterPlugin ],
+                // 블록 툴바 - 사용 가능한 아이템만 포함
+                blockToolbar: [
+                    'heading', '|',
+                    'bulletedList', 'numberedList', '|',
+                    'insertTable', 'imageUpload', 'blockQuote', '|',
+                    'undo', 'redo'
+                ],
+                // 벌룬 툴바
+                balloonToolbar: [
+                    'bold', 'italic', 'link', 'imageUpload'
+                ],
+                // 이미지 업로드 구성
+                image: {
+                    toolbar: [
+                        'imageTextAlternative', 'toggleImageCaption',
+                        'imageStyle:inline', 'imageStyle:block', 'imageStyle:side'
+                    ],
+                    styles: [
+                        'full', 'alignLeft', 'alignRight'
+                    ],
+                    resizeOptions: [
+                        {
+                            name: 'resizeImage:original',
+                            label: '원본 크기',
+                            value: null
+                        },
+                        {
+                            name: 'resizeImage:50',
+                            label: '50%',
+                            value: '50'
+                        },
+                        {
+                            name: 'resizeImage:75',
+                            label: '75%',
+                            value: '75'
                         }
-                        return;
-                    }
-
-                    json = JSON.parse(xhr.responseText);
-
-                    if (!json || typeof json.location != 'string') {
-                        failure('Invalid JSON: ' + xhr.responseText);
-                        return;
-                    }
-
-                    success(json.location);
+                    ]
+                }
+            })
+            .then(editor => {
+                // 에디터 인스턴스 저장
+                window.editor = editor;
+                
+                // 폼 제출 시 hidden input에 내용 저장
+                document.querySelector('form').addEventListener('submit', function(e) {
+                    document.getElementById('content').value = editor.getData();
+                });
+                
+                // 이제 simpleUpload 플러그인을 통해 이미지 업로드가 자동으로 처리됨
+                console.log('이미지 업로드 기능 준비 완료');
+                
+                // 자동 저장 기능 구현
+                const saveData = () => {
+                    const data = editor.getData();
+                    localStorage.setItem('ckeditor-autosave-' + autosaveKey, data);
                 };
-
-                xhr.onerror = function () {
-                    failure('Image upload failed due to a network error or server error. Status: ' + xhr.status);
-                };
-
-                formData = new FormData();
-                formData.append('file', blobInfo.blob(), blobInfo.filename());
-
-                xhr.send(formData);
-            }
-        });
+                
+                // 30초마다 자동 저장
+                const autosaveInterval = setInterval(saveData, 30000);
+                
+                // 페이지 언로드 시 자동 저장 중지
+                window.addEventListener('beforeunload', () => {
+                    clearInterval(autosaveInterval);
+                    saveData(); // 페이지 나가기 전 마지막 저장
+                });
+                
+                // 자동 저장된 내용 복원
+                const savedData = localStorage.getItem('ckeditor-autosave-' + autosaveKey);
+                if (savedData && !editor.getData()) {
+                    editor.setData(savedData);
+                }
+                
+                console.log('CKEditor 초기화 완료');
+            })
+            .catch(error => {
+                console.error('CKEditor 초기화 오류:', error);
+            });
     });
 </script>
 {% endblock %}

@@ -7,10 +7,24 @@ from app.models import User
 def token_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # 세션에서 토큰 확인
         token = session.get('admin_token')
+        
+        # 세션에 토큰이 없으면 Authorization 헤더 확인 (API 및 이미지 업로드용)
+        if not token and request.headers.get('Authorization'):
+            auth_header = request.headers.get('Authorization')
+            if auth_header and auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+                current_app.logger.info('Using token from Authorization header')
+        
+        # 토큰이 여전히 없으면 로그인 페이지로 리디렉션
         if not token:
+            # API 요청인 경우 JSON 응답 반환
+            if request.is_json or request.path.endswith(('upload_editor_image')):
+                return jsonify({'error': 'Authentication required', 'message': '인증이 필요합니다'}), 401
+            
+            # 일반 페이지 요청인 경우 로그인 페이지로 리디렉션
             flash('로그인이 필요합니다. 이 페이지에 접근하려면 먼저 로그인해주세요.', 'warning')
-            # Store the intended destination to redirect after login
             return redirect(url_for('auth.login_page', next=request.url))
         try:
             data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=["HS256"])
