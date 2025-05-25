@@ -276,8 +276,8 @@ def edit_post(current_user, post_id):
 def delete_post(current_user, post_id):
     post = Post.query.filter_by(id=post_id, user_id=current_user.id).first_or_404()
     
-    if post.cover_image_filename:
-        image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], post.cover_image_filename)
+    if post.image_filename:
+        image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], post.image_filename)
         if os.path.exists(image_path):
             try: os.remove(image_path)
             except OSError as e: current_app.logger.error(f"Error deleting image {image_path}: {e}")
