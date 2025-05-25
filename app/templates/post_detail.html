@@ -148,11 +148,33 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- 광고 영역 (좌측 사이드바로 이동) -->
+            <h5 class="mt-4"><i class="bi bi-megaphone-fill me-2"></i>광고</h5>
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <p class="card-text text-muted">Google AdSense 영역</p>
+                    <!-- AdSense code will go here -->
+                    <div style="width:100%; height:250px; background-color:#f0f0f0; display:flex; align-items:center; justify-content:center;">
+                        (광고 예시)
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 추가 광고 영역 -->
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <p class="card-text text-muted">관련 광고</p>
+                    <div style="width:100%; height:200px; background-color:#f0f0f0; display:flex; align-items:center; justify-content:center;">
+                        (광고 예시)
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     
     <!-- 메인 콘텐츠 영역 -->
-    <div class="col-12 col-md-8">
+    <div class="col-12 col-md-8" id="post-content">
     <article class="blog-post">
         <header class="mb-4">
             <h1 class="display-5 fw-bold">{{ title }}</h1>
@@ -266,26 +288,19 @@
     </article>
     </div>
     
-    <!-- 광고 사이드바 영역 -->
+    <!-- 오른쪽 사이드바 영역 (목차 + 광고) -->
     <div class="d-none d-md-block col-md-2 ps-2 pe-lg-4 pe-md-3 pe-2">
         <div class="sticky-top" style="top: 20px;">
-            <h5><i class="bi bi-megaphone-fill me-2"></i>광고</h5>
-            <div class="card mb-4">
-                <div class="card-body text-center">
-                    <p class="card-text text-muted">Google AdSense 영역</p>
-                    <!-- AdSense code will go here -->
-                    <div style="width:100%; height:250px; background-color:#f0f0f0; display:flex; align-items:center; justify-content:center;">
-                        (광고 예시)
+            <!-- 목차 영역 -->
+            <h5 class="d-flex align-items-center mb-3" style="color: #ffc107;"><i class="bi bi-list-ul me-2"></i>목차</h5>
+            <div class="mb-4" id="table-of-contents-container">
+                <div class="p-3 rounded" style="background-color: #2a2a2a; border-left: 3px solid #ffc107; box-shadow: 0 3px 10px rgba(0,0,0,0.2);">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-bookmark-fill me-2" style="color: #ffc107;"></i>
+                        <span class="h6 mb-0 font-weight-bold" style="color: #e0e0e0;">Table of contents</span>
                     </div>
-                </div>
-            </div>
-            
-            <!-- 추가 광고 영역 -->
-            <div class="card mb-4">
-                <div class="card-body text-center">
-                    <p class="card-text text-muted">관련 광고</p>
-                    <div style="width:100%; height:200px; background-color:#f0f0f0; display:flex; align-items:center; justify-content:center;">
-                        (광고 예시)
+                    <div id="toc-content">
+                        <!-- 목차 내용이 JavaScript로 자동 생성됩니다 -->
                     </div>
                 </div>
             </div>
@@ -300,6 +315,110 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+    
+    <!-- 목차(Table of Contents) 생성을 위한 스크립트 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 목차를 생성할 컨테이너 요소
+            const tocContainer = document.getElementById('toc-content');
+            // 포스트 컨텐츠 영역
+            const postContent = document.querySelector('.post-content');
+            
+            if (tocContainer && postContent) {
+                // 모든 제목 요소(h1, h2, h3, h4)를 찾음
+                const headings = postContent.querySelectorAll('h1, h2, h3, h4');
+                
+                // 제목이 있는 경우에만 목차 생성
+                if (headings.length > 0) {
+                    // 각 제목 요소를 순회하며 목차 항목 생성
+                    headings.forEach((heading, index) => {
+                        // 제목에 고유 ID 부여 (없는 경우)
+                        if (!heading.id) {
+                            // 제목 텍스트를 기반으로 ID 생성 (영문, 숫자, 하이픈만 포함)
+                            const headingText = heading.textContent.trim();
+                            const headingId = headingText
+                                .toLowerCase()
+                                .replace(/[^\w\s-]/g, '') // 특수 문자 제거
+                                .replace(/[\s_]+/g, '-') // 공백을 하이픈으로 변경
+                                .replace(/^-+|-+$/g, ''); // 시작과 끝의 하이픈 제거
+                            
+                            heading.id = headingId || `section-${index}`;
+                        }
+                        
+                        // 제목 레벨에 따라 들여쓰기 스타일 조정
+                        const headingLevel = parseInt(heading.tagName.charAt(1));
+                        const indentClass = headingLevel > 1 ? `ms-${(headingLevel-1)*2}` : '';
+                        
+                        // 목차 항목 생성 (사용자가 요청한 스타일로)
+                        const tocItem = document.createElement('div');
+                        tocItem.className = `mb-3 overflow-x-hidden ${indentClass}`;
+                        
+                        const tocLink = document.createElement('a');
+                        tocLink.href = `#${heading.id}`;
+                        tocLink.className = 'transition-colors duration-150';
+                        tocLink.style.color = '#b7b7b7';
+                        tocLink.style.textDecoration = 'none';
+                        tocLink.onmouseover = function() { this.style.color = '#ffc107'; };
+                        tocLink.onmouseout = function() { this.style.color = '#b7b7b7'; };
+                        tocLink.textContent = heading.textContent;
+                        
+                        // 현재 보고 있는 섹션 표시
+                        tocLink.addEventListener('click', function(e) {
+                            // 기본 동작 방지 (페이지 새로고침 방지)
+                            e.preventDefault();
+                            
+                            // 해당 섹션으로 부드럽게 스크롤
+                            document.getElementById(heading.id).scrollIntoView({ 
+                                behavior: 'smooth' 
+                            });
+                            
+                            // URL 해시 업데이트 (브라우저 히스토리에 기록)
+                            history.pushState(null, null, `#${heading.id}`);
+                        });
+                        
+                        tocItem.appendChild(tocLink);
+                        tocContainer.appendChild(tocItem);
+                    });
+                    
+                    // 스크롤 이벤트 리스너 추가 - 현재 보고 있는 섹션 하이라이트
+                    window.addEventListener('scroll', highlightCurrentSection);
+                    
+                    // 페이지 로드 시 초기 하이라이트 설정
+                    highlightCurrentSection();
+                } else {
+                    // 제목이 없는 경우 메시지 표시
+                    tocContainer.innerHTML = '<div class="text-muted">목차가 없습니다.</div>';
+                }
+            }
+            
+            // 현재 화면에 보이는 섹션에 해당하는 목차 항목을 하이라이트하는 함수
+            function highlightCurrentSection() {
+                const headings = document.querySelectorAll('.post-content h1, .post-content h2, .post-content h3, .post-content h4');
+                const tocLinks = document.querySelectorAll('#toc-content a');
+                
+                // 화면에 보이는 제목 중 가장 위에 있는 것을 찾음
+                let currentHeadingIndex = -1;
+                const scrollPosition = window.scrollY + 100; // 약간의 오프셋 추가
+                
+                headings.forEach((heading, index) => {
+                    if (heading.offsetTop <= scrollPosition) {
+                        currentHeadingIndex = index;
+                    }
+                });
+                
+                // 모든 목차 항목 색상 초기화
+                tocLinks.forEach(link => {
+                    link.style.color = '#b7b7b7';
+                });
+                
+                // 현재 섹션에 해당하는 목차 항목에 활성 색상 추가
+                if (currentHeadingIndex >= 0 && currentHeadingIndex < tocLinks.length) {
+                    tocLinks[currentHeadingIndex].style.color = '#ffc107';
+                    tocLinks[currentHeadingIndex].style.fontWeight = 'bold';
+                }
+            }
+        });
+    </script>
     
     <!-- 컴포넌트 관련 추가 스크립트 -->
     <script>

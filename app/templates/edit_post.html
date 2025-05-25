@@ -15,8 +15,11 @@
     </script>
     
     <!-- CKEditor 5 - 코드 블록을 포함한 더 많은 기능을 가진 빌드 사용 -->
-    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/super-build/ckeditor.js"></script>
-    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/super-build/translations/ko.js"></script>
+    <script src="https://cdn.ckeditor.com/ckeditor5/40.1.0/super-build/ckeditor.js"></script>
+    <script src="https://cdn.ckeditor.com/ckeditor5/40.1.0/super-build/translations/ko.js"></script>
+    
+    <!-- 마크다운 변환을 위한 라이브러리 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <!-- 코드 블록 하이라이팅을 위한 highlight.js 추가 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
@@ -193,6 +196,34 @@
             margin: 1em 0;
             white-space: pre-wrap;
         }
+        
+        /* 텍스트 색상 문제 해결을 위한 스타일 */
+        .ck-editor__editable p, 
+        .ck-editor__editable h1, 
+        .ck-editor__editable h2, 
+        .ck-editor__editable h3, 
+        .ck-editor__editable h4, 
+        .ck-editor__editable h5, 
+        .ck-editor__editable h6, 
+        .ck-editor__editable li {
+            color: #000 !important;
+        }
+        
+        /* 코드 블록 내 텍스트 색상 */
+        .ck-editor__editable pre code {
+            color: #000 !important;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+        }
+        
+        /* 모든 텍스트 요소에 강제 적용 */
+        .ck-editor__editable * {
+            color: #000 !important;
+        }
+        
+        /* 링크 텍스트도 검은색으로 (hover 상태 제외) */
+        .ck-editor__editable a:not(:hover) {
+            color: #000 !important;
+        }
     </style>
 {% endblock %}
 
@@ -222,8 +253,34 @@
 
                         <div class="mb-3">
                             {{ form.content.label(class="form-label") }}
+                            
+                            <!-- 편집 모드 전환 버튼 -->
+                            <div class="d-flex justify-content-end mb-2">
+                                <div class="btn-group" role="group">
+                                    <button type="button" id="wysiwyg-mode" class="btn btn-sm btn-primary active">일반 편집기</button>
+                                    <button type="button" id="markdown-mode" class="btn btn-sm btn-outline-primary">마크다운 편집</button>
+                                </div>
+                            </div>
+                            
+                            <!-- 폼 전송을 위한 숨겨진 textarea -->
                             {{ form.content(class="form-control d-none" + (" is-invalid" if form.content.errors else ""), rows=25, placeholder="내용을 입력하세요...", id="content", **{'data-autosave-key': (post_id if post_id else 'new')}) }}
-                            <div id="editor">{{ form.content.data|safe if form.content.data else '' }}</div>
+                            
+                            <!-- CKEditor 영역 -->
+                            <div id="editor-container">
+                                <div id="editor">{{ form.content.data|safe if form.content.data else '' }}</div>
+                            </div>
+                            
+                            <!-- 마크다운 편집 영역 -->
+                            <div id="markdown-container" style="display: none;">
+                                <textarea class="form-control" id="markdown-editor" rows="20" style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;"></textarea>
+                                <div class="d-flex justify-content-between mt-2">
+                                    <small class="text-muted">마크다운 문법을 사용하여 작성하세요.</small>
+                                    <button type="button" id="preview-markdown" class="btn btn-sm btn-outline-secondary">미리보기</button>
+                                </div>
+                                <!-- 마크다운 미리보기 영역 -->
+                                <div id="markdown-preview" class="mt-3 p-3 border rounded" style="display: none;"></div>
+                            </div>
+                            
                             {% if form.content.errors %}
                                 <div class="invalid-feedback">
                                     {% for error in form.content.errors %}
@@ -632,7 +689,7 @@
                 // 에디터 인스턴스 저장
                 window.editor = editor;
                 
-                // highlight.js로 코드 구문 강조 적용 - 이미 강조된 요소는 건너뛬기
+                // highlight.js로 코드 구문 강조 적용 - 이미 강조된 요소는 건너뛸기
                 function applyHighlighting() {
                     document.querySelectorAll('pre code').forEach((block) => {
                         // 이미 강조된 요소인지 확인
@@ -758,6 +815,203 @@
                 form.addEventListener('submit', function(e) {
                     e.preventDefault();
                     console.log('기존 폼 제출 차단됨');
+                });
+                
+                // 마크다운 모드와 일반 편집기 모드 전환 기능 추가
+                const wysiwygModeBtn = document.getElementById('wysiwyg-mode');
+                const markdownModeBtn = document.getElementById('markdown-mode');
+                const editorContainer = document.getElementById('editor-container');
+                const markdownContainer = document.getElementById('markdown-container');
+                const markdownEditor = document.getElementById('markdown-editor');
+                const markdownPreview = document.getElementById('markdown-preview');
+                const previewMarkdownBtn = document.getElementById('preview-markdown');
+                
+                // HTML을 마크다운으로 변환하는 함수 (단순화된 전환)
+                function htmlToMarkdown(html) {
+                    // 기본적인 변환 작업
+                    let markdown = html;
+                    
+                    // 텍스트 정리
+                    markdown = markdown.replace(/\n\s+/g, '\n');
+                    
+                    // 테그 변환
+                    markdown = markdown.replace(/<h1[^>]*>(.+?)<\/h1>/gi, '# $1\n');
+                    markdown = markdown.replace(/<h2[^>]*>(.+?)<\/h2>/gi, '## $1\n');
+                    markdown = markdown.replace(/<h3[^>]*>(.+?)<\/h3>/gi, '### $1\n');
+                    markdown = markdown.replace(/<h4[^>]*>(.+?)<\/h4>/gi, '#### $1\n');
+                    markdown = markdown.replace(/<h5[^>]*>(.+?)<\/h5>/gi, '##### $1\n');
+                    markdown = markdown.replace(/<h6[^>]*>(.+?)<\/h6>/gi, '###### $1\n');
+                    
+                    markdown = markdown.replace(/<strong>(.+?)<\/strong>/gi, '**$1**');
+                    markdown = markdown.replace(/<b>(.+?)<\/b>/gi, '**$1**');
+                    markdown = markdown.replace(/<em>(.+?)<\/em>/gi, '*$1*');
+                    markdown = markdown.replace(/<i>(.+?)<\/i>/gi, '*$1*');
+                    markdown = markdown.replace(/<code>(.+?)<\/code>/gi, '`$1`');
+                    
+                    // 리스트 변환
+                    markdown = markdown.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, function(match, content) {
+                        return content.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '- $1\n');
+                    });
+                    
+                    markdown = markdown.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, function(match, content) {
+                        let counter = 1;
+                        return content.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, function(match, item) {
+                            return (counter++) + '. ' + item + '\n';
+                        });
+                    });
+                    
+                    // 링크 변환
+                    markdown = markdown.replace(/<a[^>]*href=["']([^"']+)["'][^>]*>(.+?)<\/a>/gi, '[$2]($1)');
+                    
+                    // 이미지 변환 - 더 강력한 이미지 태그 처리
+                    markdown = markdown.replace(/<img[^>]*src=["']([^"']+)["'][^>]*(?:alt=["']([^"']*))?["']?[^>]*\/?>/gi, function(match, src, alt) {
+                        console.log('이미지 변환:', src, alt || '');
+                        return '!['+ (alt || '') + '](' + src + ')';
+                    });
+                    
+                    // figure와 figcaption을 포함한 이미지 처리
+                    markdown = markdown.replace(/<figure[^>]*>\s*<img[^>]*src=["']([^"']+)["'][^>]*(?:alt=["']([^"']*))?["']?[^>]*\/?>[\s\S]*?<figcaption[^>]*>([\s\S]*?)<\/figcaption>[\s\S]*?<\/figure>/gi, 
+                        function(match, src, alt, caption) {
+                            console.log('캐프션 이미지 변환:', src, alt || '', caption);
+                            return '!['+ (alt || caption || '') + '](' + src + ')';
+                        }
+                    );
+                    
+                    // 코드 블록 변환
+                    markdown = markdown.replace(/<pre[^>]*><code[^>]*class=["']language-([^"']+)["'][^>]*>([\s\S]*?)<\/code><\/pre>/gi, 
+                        function(match, language, code) {
+                            return '```' + language + '\n' + code.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&') + '\n```\n';
+                        }
+                    );
+                    
+                    // 단락 처리
+                    markdown = markdown.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, '$1\n\n');
+                    
+                    // 인용문 변환
+                    markdown = markdown.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, function(match, content) {
+                        return content.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, '> $1\n');
+                    });
+                    
+                    // HTML 테그 제거
+                    markdown = markdown.replace(/<[^>]+>/g, '');
+                    
+                    // HTML 엔티티 변환
+                    markdown = markdown.replace(/&nbsp;/g, ' ');
+                    markdown = markdown.replace(/&lt;/g, '<');
+                    markdown = markdown.replace(/&gt;/g, '>');
+                    markdown = markdown.replace(/&amp;/g, '&');
+                    
+                    // 여러 줄바꿈 정리
+                    markdown = markdown.replace(/\n{3,}/g, '\n\n');
+                    
+                    return markdown;
+                }
+                
+                // 마크다운에서 WYSIWYG 모드로 전환
+                wysiwygModeBtn.addEventListener('click', function() {
+                    if (markdownContainer.style.display !== 'none') {
+                        // 마크다운 텍스트를 HTML로 변환
+                        const markdownText = markdownEditor.value;
+                        console.log('마크다운 모드에서 일반 편집기로 전환 시도:', markdownText.substring(0, 100) + '...');
+                        
+                        try {
+                            // marked.js를 사용하여 마크다운을 HTML로 변환
+                            const htmlContent = marked.parse(markdownText, {
+                                gfm: true,            // GitHub Flavored Markdown 사용
+                                breaks: true,         // 줄바꿈을 <br>로 변환
+                                sanitize: false,       // HTML 태그 허용
+                                pedantic: false,      // 마크다운 사양에 맞춤
+                                smartLists: true,      // 스마트 리스트
+                                smartypants: true     // 인용부호 등 변환
+                            });
+                            
+                            console.log('변환된 HTML:', htmlContent.substring(0, 100) + '...');
+                            
+                            // CKEditor에 HTML 설정
+                            editor.setData(htmlContent);
+                            
+                            // UI 업데이트
+                            markdownContainer.style.display = 'none';
+                            editorContainer.style.display = 'block';
+                            markdownPreview.style.display = 'none';
+                        } catch (error) {
+                            console.error('마크다운 변환 오류:', error);
+                            alert('마크다운에서 HTML로 변환 중 오류가 발생했습니다.');
+                        }
+                        
+                        wysiwygModeBtn.classList.add('active');
+                        wysiwygModeBtn.classList.remove('btn-outline-primary');
+                        wysiwygModeBtn.classList.add('btn-primary');
+                        
+                        markdownModeBtn.classList.remove('active');
+                        markdownModeBtn.classList.remove('btn-primary');
+                        markdownModeBtn.classList.add('btn-outline-primary');
+                    }
+                });
+                
+                // WYSIWYG에서 마크다운 모드로 전환
+                markdownModeBtn.addEventListener('click', function() {
+                    if (editorContainer.style.display !== 'none') {
+                        // CKEditor의 HTML 콘텐츠 가져오기
+                        const htmlContent = editor.getData();
+                        
+                        // HTML을 마크다운으로 변환
+                        const markdownText = htmlToMarkdown(htmlContent);
+                        markdownEditor.value = markdownText;
+                        
+                        // UI 업데이트
+                        editorContainer.style.display = 'none';
+                        markdownContainer.style.display = 'block';
+                        
+                        markdownModeBtn.classList.add('active');
+                        markdownModeBtn.classList.remove('btn-outline-primary');
+                        markdownModeBtn.classList.add('btn-primary');
+                        
+                        wysiwygModeBtn.classList.remove('active');
+                        wysiwygModeBtn.classList.remove('btn-primary');
+                        wysiwygModeBtn.classList.add('btn-outline-primary');
+                    }
+                });
+                
+                // 마크다운 미리보기 기능
+                previewMarkdownBtn.addEventListener('click', function() {
+                    const markdownText = markdownEditor.value;
+                    const htmlContent = marked.parse(markdownText);
+                    
+                    markdownPreview.innerHTML = htmlContent;
+                    
+                    // 코드 하이라이팅 적용
+                    markdownPreview.querySelectorAll('pre code').forEach((block) => {
+                        hljs.highlightElement(block);
+                    });
+                    
+                    // 미리보기 표시/숨김 토글
+                    if (markdownPreview.style.display === 'none') {
+                        markdownPreview.style.display = 'block';
+                        previewMarkdownBtn.textContent = '미리보기 숨기기';
+                    } else {
+                        markdownPreview.style.display = 'none';
+                        previewMarkdownBtn.textContent = '미리보기';
+                    }
+                });
+                
+                // 폼 제출 전 현재 작성 내용 저장
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    console.log('폼 제출 중...');
+                    
+                    // 현재 어떤 모드인지 확인하고 해당 내용을 저장
+                    if (markdownContainer.style.display !== 'none') {
+                        // 마크다운 모드인 경우
+                        const markdownText = markdownEditor.value;
+                        const htmlContent = marked.parse(markdownText);
+                        contentField.value = htmlContent;
+                        console.log('마크다운에서 HTML로 변환하여 저장');
+                    } else {
+                        // WYSIWYG 모드인 경우
+                        contentField.value = editor.getData();
+                        console.log('CKEditor 내용 저장');
+                    }
                 });
                 
                 // 자동 저장 기능 추가
