@@ -782,6 +782,17 @@
                             newForm.appendChild(categoryInput);
                         }
                         
+                        // 태그 추가 - 태그 저장 문제 해결
+                        const tagsField = document.getElementById('actual-tags-input');
+                        if (tagsField) {
+                            console.log('태그 값:', tagsField.value);
+                            const tagsInput = document.createElement('input');
+                            tagsInput.type = 'hidden';
+                            tagsInput.name = 'tags';
+                            tagsInput.value = tagsField.value;
+                            newForm.appendChild(tagsInput);
+                        }
+                        
                         // 그 외 필요한 필드들 추가
                         const otherFields = form.querySelectorAll('input:not([type="submit"]), textarea');
                         otherFields.forEach(field => {
