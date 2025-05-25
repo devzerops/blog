@@ -102,19 +102,35 @@ def new_post(current_user):
             optimized_filepath = optimize_image(filepath)
             cover_image_filename = os.path.basename(optimized_filepath) # Save only the filename
 
+        # Determine if post should be published based on which button was clicked
+        is_published = False
+        published_at = None
+        
+        # Check which submit button was clicked
+        if 'publish' in request.form:
+            # If publish button was clicked, always set as published
+            is_published = True
+            published_at = datetime.utcnow()
+        elif 'save_draft' in request.form:
+            # If save_draft button was clicked, always set as draft
+            is_published = False
+        else:
+            # Fallback to form data (shouldn't happen with current form design)
+            is_published = form.is_published.data
+            if is_published:
+                published_at = datetime.utcnow()
+                
         post = Post(
             title=form.title.data,
             content=form.content.data,
-            user_id=current_user.id, # Assuming current_user is available and has an id
+            user_id=current_user.id, 
             image_filename=cover_image_filename, # Using the cover_image_filename variable but assigning to image_filename field
-            alt_text=form.alt_text.data, # Changed from cover_image_alt_text
-            video_embed_url=form.video_embed_url.data, # Changed from video_url,
-            # tags=form.tags.data, # Will be handled by tag processing logic below
-            is_published=form.is_published.data,
-            category_id=form.category.data.id if form.category.data else None # Save category ID
+            alt_text=form.alt_text.data, 
+            video_embed_url=form.video_embed_url.data, 
+            is_published=is_published,
+            published_at=published_at,
+            category_id=form.category.data.id if form.category.data else None
         )
-        if form.is_published.data:
-            post.published_at = datetime.utcnow()
 
         db.session.add(post)
         db.session.commit()
@@ -157,12 +173,23 @@ def edit_post(current_user, post_id):
         post.video_embed_url = form.video_embed_url.data # Changed from video_url
         post.category_id = form.category.data.id if form.category.data else None # Update category ID
 
-        # Handle published status
-        if form.is_published.data and not post.is_published:
-            post.published_at = datetime.utcnow()
-        elif not form.is_published.data:
-            post.published_at = None # Clear published_at if unpublished
-        post.is_published = form.is_published.data
+        # Check which submit button was clicked
+        if 'publish' in request.form:
+            # If publish button was clicked, always set as published
+            post.is_published = True
+            if not post.published_at:  # If it wasn't published before
+                post.published_at = datetime.utcnow()
+        elif 'save_draft' in request.form:
+            # If save_draft button was clicked, always set as draft
+            post.is_published = False
+            post.published_at = None
+        else:
+            # Fallback to form data (shouldn't happen with current form design)
+            if form.is_published.data and not post.is_published:
+                post.published_at = datetime.utcnow()
+            elif not form.is_published.data:
+                post.published_at = None
+            post.is_published = form.is_published.data
 
         post.updated_at = datetime.utcnow()
 
