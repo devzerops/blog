@@ -471,22 +471,29 @@
         });
     </script>
     <script>
-        Prism.plugins.toolbar.registerButton('select-code', function (env) {
-            var button = document.createElement('button');
-            button.innerHTML = 'Select Code';
-            button.addEventListener('click', function () {
-                if (document.selection) { // IE
-                    var range = document.body.createTextRange();
-                    range.moveToElementText(env.element);
-                    range.select();
-                } else if (window.getSelection) {
-                    var range = document.createRange();
-                    range.selectNode(env.element);
-                    window.getSelection().removeAllRanges();
-                    window.getSelection().addRange(range);
+        document.addEventListener('DOMContentLoaded', function() {
+            // 코드 블록이 로드된 후 Prism 초기화
+            setTimeout(function() {
+                if (Prism && Prism.plugins && Prism.plugins.toolbar) {
+                    Prism.plugins.toolbar.registerButton('select-code', function (env) {
+                        var button = document.createElement('button');
+                        button.innerHTML = 'Select Code';
+                        button.addEventListener('click', function () {
+                            if (document.selection) { // IE
+                                var range = document.body.createTextRange();
+                                range.moveToElementText(env.element);
+                                range.select();
+                            } else if (window.getSelection) {
+                                var range = document.createRange();
+                                range.selectNode(env.element);
+                                window.getSelection().removeAllRanges();
+                                window.getSelection().addRange(range);
+                            }
+                        });
+                        return button;
+                    });
                 }
-            });
-            return button;
+            }, 500);
         });
     </script>
     <script>

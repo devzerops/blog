@@ -4,7 +4,7 @@
 {% block admin_content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-end mb-3">
-        <a href="{{ url_for('admin.admin_new_category') }}" class="btn btn-primary">Add New Category</a>
+        <a href="{{ url_for('admin.admin_add_category') }}" class="btn btn-primary">Add New Category</a>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}

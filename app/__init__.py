@@ -69,8 +69,9 @@ def create_app(config_class=Config):
     from app.routes_auth import bp_auth
     app.register_blueprint(bp_auth, url_prefix='/auth')
 
-    from app.routes_admin import bp_admin
-    app.register_blueprint(bp_admin, url_prefix='/admin')
+    # Import from the new routes package structure
+    from app.routes.admin import bp_admin
+    app.register_blueprint(bp_admin)
 
     from app.routes_public import bp_public
     app.register_blueprint(bp_public) 
