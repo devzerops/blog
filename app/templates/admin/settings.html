@@ -1,5 +1,20 @@
 {% extends "base.html" %}
 
+{% block head_extra %}
+    <!-- CKEditor 5 - Classic 빌드 사용 -->    
+    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/classic/ckeditor.js"></script>
+    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/classic/translations/ko.js"></script>
+    
+    <style>
+        /* CKEditor 스타일 */
+        .ck-editor__editable {
+            min-height: 350px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+    </style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-4">
     <h1 class="mt-4">{{ title }}</h1>
@@ -124,9 +139,47 @@
                     {% endif %}
                 </div>
 
+                <div class="mb-3">
+                    {{ form.about_content.label(class="form-label") }}
+                    <div class="mb-2">
+                        <a href="{{ url_for('public.about_page') }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-eye"></i> 소개 페이지 미리보기
+                        </a>
+                    </div>
+                    {{ form.about_content(id="about-content-editor", class="form-control" + (" is-invalid" if form.about_content.errors else ""), rows="10") }}
+                    {% if form.about_content.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.about_content.errors %}<span>{{ error }}</span>{% endfor %}
+                        </div>
+                    {% endif %}
+                    <small class="form-text text-muted">소개 페이지의 내용을 HTML로 작성할 수 있습니다. 비워두면 기본 내용이 표시됩니다.</small>
+                </div>
+
                 {{ form.submit(class="btn btn-primary mt-3") }}
             </form>
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // CKEditor Classic 초기화
+        ClassicEditor
+            .create(document.querySelector('#about-content-editor'), {
+                language: 'ko',
+                toolbar: [
+                    'heading', '|', 
+                    'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|',
+                    'outdent', 'indent', '|',
+                    'blockQuote', 'insertTable', 'undo', 'redo'
+                ]
+            })
+            .then(editor => {
+                console.log('소개 페이지 에디터 초기화 완료');
+            })
+            .catch(error => {
+                console.error('소개 페이지 에디터 초기화 오류:', error);
+            });
+    });
+</script>
 {% endblock %}

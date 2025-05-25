@@ -109,4 +109,5 @@ class SiteSettingsForm(FlaskForm):
     ad_sense_code = TextAreaField('AdSense 또는 광고 코드', validators=[Optional()])
     google_analytics_id = StringField('Google Analytics ID (예: UA-XXXXX-Y)', validators=[Optional(), Length(max=50)])
     footer_copyright_text = StringField('푸터 저작권 문구', validators=[Optional(), Length(max=255)], default=" {year} {site_title}. All rights reserved.")
+    about_content = TextAreaField('소개 페이지 내용', validators=[Optional()])
     submit = SubmitField('설정 저장')

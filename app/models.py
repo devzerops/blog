@@ -96,6 +96,7 @@ class SiteSetting(db.Model):
     ad_sense_code = db.Column(db.Text, nullable=True)
     google_analytics_id = db.Column(db.String(50), nullable=True)
     footer_copyright_text = db.Column(db.String(255), nullable=True, default=" {year} {site_title}. All rights reserved.")
+    about_content = db.Column(db.Text, nullable=True)
 
     def __repr__(self):
         return f'<SiteSetting {self.site_title}>'

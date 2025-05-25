@@ -223,7 +223,10 @@ def add_comment(post_id):
 @bp_public.route('/about')
 def about_page():
     current_user = get_current_user_if_logged_in() # Use the new function
-    return render_template('about.html', title='소개', current_user=current_user)
+    # Get site settings for about content
+    site_settings = SiteSetting.query.first()
+    about_content = site_settings.about_content if site_settings and site_settings.about_content else None
+    return render_template('about.html', title='소개', current_user=current_user, about_content=about_content)
 
 @bp_public.route('/uploads/<path:filename>')
 def uploaded_file(filename):

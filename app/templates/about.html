@@ -11,28 +11,32 @@
             
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <p class="card-text fs-5">
-                        Welcome to our blog! 
-                    </p>
-                    <p class="card-text">
-                        This is a place where we share insights, stories, and updates on various topics that fascinate us. 
-                        Our mission is to provide valuable and engaging content to our readers.
-                    </p>
-                    <p class="card-text">
-                        This blog is built with Flask, Python, and a touch of Bootstrap magic. We are continuously working to improve the experience and add new features.
-                    </p>
-                    
-                    <hr class="my-4">
+                    {% if about_content %}
+                        {{ about_content|safe }}
+                    {% else %}
+                        <p class="card-text fs-5">
+                            Welcome to our blog! 
+                        </p>
+                        <p class="card-text">
+                            This is a place where we share insights, stories, and updates on various topics that fascinate us. 
+                            Our mission is to provide valuable and engaging content to our readers.
+                        </p>
+                        <p class="card-text">
+                            This blog is built with Flask, Python, and a touch of Bootstrap magic. We are continuously working to improve the experience and add new features.
+                        </p>
+                        
+                        <hr class="my-4">
 
-                    <h4 class="mt-4">Meet the Author</h4>
-                    <p class="card-text">
-                        <em>[This is where you can introduce yourself! Talk about your passions, your background, and what inspired you to start this blog. Readers love to connect with the person behind the posts.]</em>
-                    </p>
-                    
-                    <h4 class="mt-4">Our Vision</h4>
-                    <p class="card-text">
-                        <em>[Share your aspirations for this blog. What kind of community do you want to build? What impact do you hope to make? Let your readers know what they can expect.]</em>
-                    </p>
+                        <h4 class="mt-4">Meet the Author</h4>
+                        <p class="card-text">
+                            <em>[This is where you can introduce yourself! Talk about your passions, your background, and what inspired you to start this blog. Readers love to connect with the person behind the posts.]</em>
+                        </p>
+                        
+                        <h4 class="mt-4">Our Vision</h4>
+                        <p class="card-text">
+                            <em>[Share your aspirations for this blog. What kind of community do you want to build? What impact do you hope to make? Let your readers know what they can expect.]</em>
+                        </p>
+                    {% endif %}
 
                     <p class="mt-5 text-center">
                         Thank you for visiting and being a part of our journey!
