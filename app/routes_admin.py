@@ -292,14 +292,14 @@ def export_all_content(current_user): # Re-added current_user argument
         posts_data = []
         for post in all_posts:
             relative_image_path = None
-            if post.image_filename: # Changed from cover_image_filename
-                original_image_relative_path = post.cover_image_filename
-                image_filename_only = os.path.basename(original_image_relative_path)
+            if post.image_filename: # 이미지 필드가 있는 경우
+                # image_filename을 사용하도록 수정
+                image_filename_only = post.image_filename  # 파일명만 사용
                 source_image_path_in_zip = os.path.join(current_app.static_folder, 'uploads', image_filename_only)
                 if os.path.exists(source_image_path_in_zip):
                     # Copy image to temp dir
                     shutil.copy(source_image_path_in_zip, images_temp_dir)
-                    relative_image_path = f'images/{post.cover_image_filename}' # Path within the zip
+                    relative_image_path = f'images/{image_filename_only}' # Path within the zip
             
             post_item = {
                 'id': post.id,
@@ -443,7 +443,7 @@ def data_restore(current_user): # Renamed function, current_user is used here
                             updated_at=updated_at_dt,
                             is_published=post_data.get('is_published', False),
                             published_at=published_at_dt,
-                            cover_image_filename=new_image_filename,
+                            image_filename=new_image_filename,  # 변경된 필드명 사용
                             tags=post_data.get('tags'),
                             meta_description=post_data.get('meta_description'),
                             slug=post_data.get('slug'),
