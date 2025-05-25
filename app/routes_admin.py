@@ -64,12 +64,46 @@ def optimize_image(image_path, max_width=1200, quality=85):
 @bp_admin.route('/') # Make dashboard the default for /admin/
 @token_required
 def dashboard(current_user):
+    # Get filter parameters
     page = request.args.get('page', 1, type=int)
-    posts_pagination = Post.query.filter_by(user_id=current_user.id).order_by(Post.updated_at.desc()).paginate(
+    category_id = request.args.get('category_id', type=int)
+    status = request.args.get('status')
+    
+    # Start with base query for user's posts
+    query = Post.query.filter_by(user_id=current_user.id)
+    
+    # Apply filters if provided
+    if category_id:
+        query = query.filter_by(category_id=category_id)
+    
+    if status:
+        if status == 'published':
+            query = query.filter_by(is_published=True)
+        elif status == 'draft':
+            query = query.filter_by(is_published=False)
+    
+    # Order by updated date
+    query = query.order_by(Post.updated_at.desc())
+    
+    # Paginate results
+    posts_pagination = query.paginate(
         page=page, per_page=current_app.config.get('POSTS_PER_PAGE', 10), error_out=False
     )
     posts = posts_pagination.items
-    return render_template('admin_dashboard.html', title='관리자 대시보드', posts=posts, pagination=posts_pagination, current_user=current_user)
+    
+    # Get all categories for filter dropdown
+    categories = Category.query.order_by(Category.name).all()
+    
+    return render_template(
+        'admin_dashboard.html', 
+        title='관리자 대시보드', 
+        posts=posts, 
+        pagination=posts_pagination, 
+        current_user=current_user,
+        categories=categories,
+        selected_category_id=category_id,
+        selected_status=status
+    )
 
 @bp_admin.route('/posts', methods=['GET'])
 @admin_required
