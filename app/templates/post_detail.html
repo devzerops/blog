@@ -44,18 +44,35 @@
 {% endblock %}
 
 {% block content %}
-<!-- Off-canvas Filter Button (Mobile Only) -->
-<div class="d-md-none mb-3 text-end">
-    <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas" aria-controls="filterOffcanvas">
-        <i class="bi bi-funnel-fill"></i> 필터
-    </button>
+<!-- 모바일용 FAB 스타일 네비게이션 (화면 우측 하단에 고정) -->
+<div class="d-md-none fixed-bottom" style="z-index: 1030; right: 20px; bottom: 20px; left: auto;">
+    <div class="d-flex flex-column align-items-end">
+        <!-- 필터 버튼 -->
+        <button class="btn rounded-circle mb-2 d-flex align-items-center justify-content-center shadow" 
+                type="button" 
+                data-bs-toggle="offcanvas" 
+                data-bs-target="#filterOffcanvas" 
+                aria-controls="filterOffcanvas" 
+                style="background-color: #424242; color: white; width: 50px; height: 50px; opacity: 0.9;">
+            <i class="bi bi-funnel-fill"></i>
+        </button>
+        
+        <!-- 목차 버튼 -->
+        <button class="btn rounded-circle d-flex align-items-center justify-content-center shadow" 
+                type="button" 
+                data-bs-toggle="offcanvas" 
+                data-bs-target="#tocOffcanvas" 
+                aria-controls="tocOffcanvas" 
+                style="background-color: #ffc107; color: #212529; width: 60px; height: 60px;">
+            <i class="bi bi-list-ul" style="font-size: 1.5rem;"></i>
+        </button>
+    </div>
 </div>
 
-<!-- 모바일용 목차 버튼 (상단에 추가) -->
-<div class="d-md-none mb-3 text-end">
-    <button class="btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" style="background-color: #2a2a2a; color: #ffc107; border: 1px solid #ffc107;">
-        <i class="bi bi-list-ul me-2"></i> 목차 보기
-    </button>
+<!-- 원래 버튼들의 공간을 되살리기 위한 비어있는 div (삭제하지 않고 숨김) -->
+<div class="d-md-none" style="visibility: hidden;">
+    <div class="mb-3">&nbsp;</div>
+    <div class="mb-3">&nbsp;</div>
 </div>
 
 <!-- 모바일용 목차 오프캩4버스 -->
@@ -312,13 +329,9 @@
     <div class="d-none d-md-block col-md-2 ps-2 pe-lg-4 pe-md-3 pe-2">
         <div class="sticky-top" style="top: 20px;">
             <!-- 목차 영역 -->
-            <h5 class="d-flex align-items-center mb-3" style="color: #ffc107;"><i class="bi bi-list-ul me-2"></i>목차</h5>
+            <h5 class="d-flex align-items-center mb-3"><i class="bi bi-list-ul me-2"></i>목차</h5>
             <div class="mb-4" id="table-of-contents-container">
-                <div class="p-3 rounded" style="background-color: #2a2a2a; border-left: 3px solid #ffc107; box-shadow: 0 3px 10px rgba(0,0,0,0.2);">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="bi bi-bookmark-fill me-2" style="color: #ffc107;"></i>
-                        <span class="h6 mb-0 font-weight-bold" style="color: #e0e0e0;">Table of contents</span>
-                    </div>
+                <div class="p-3 rounded" style="background-color: #222; border-left: 2px solid #6c757d; box-shadow: 0 2px 5px rgba(0,0,0,0.15);">
                     <div id="toc-content">
                         <!-- 목차 내용이 JavaScript로 자동 생성됩니다 -->
                     </div>
@@ -379,7 +392,7 @@
                         tocLink.className = 'transition-colors duration-150';
                         tocLink.style.color = '#b7b7b7';
                         tocLink.style.textDecoration = 'none';
-                        tocLink.onmouseover = function() { this.style.color = '#ffc107'; };
+                        tocLink.onmouseover = function() { this.style.color = '#6c9bd4'; };
                         tocLink.onmouseout = function() { this.style.color = '#b7b7b7'; };
                         tocLink.textContent = heading.textContent;
                         

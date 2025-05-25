@@ -13,11 +13,24 @@
 {% block main_container_class %}container-fluid{% endblock %}
 
 {% block content %}
-<!-- Off-canvas Filter Button (Mobile Only) -->
-<div class="d-md-none mb-3 text-end">
-    <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas" aria-controls="filterOffcanvas">
-        <i class="bi bi-funnel-fill"></i> 필터
-    </button>
+<!-- 모바일용 FAB 스타일 필터 버튼 (화면 우측 하단에 고정) -->
+<div class="d-md-none fixed-bottom" style="z-index: 1030; right: 20px; bottom: 20px; left: auto;">
+    <div class="d-flex flex-column align-items-end">
+        <!-- 필터 버튼 -->
+        <button class="btn rounded-circle d-flex align-items-center justify-content-center shadow" 
+                type="button" 
+                data-bs-toggle="offcanvas" 
+                data-bs-target="#filterOffcanvas" 
+                aria-controls="filterOffcanvas" 
+                style="background-color: #424242; color: white; width: 60px; height: 60px;">
+            <i class="bi bi-funnel-fill" style="font-size: 1.5rem;"></i>
+        </button>
+    </div>
+</div>
+
+<!-- 원래 버튼의 공간을 유지하기 위한 바로 수를 채우는 div -->
+<div class="d-md-none" style="visibility: hidden;">
+    <div class="mb-3">&nbsp;</div>
 </div>
 
 <div class="row mt-4">
