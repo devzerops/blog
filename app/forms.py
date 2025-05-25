@@ -41,7 +41,7 @@ class CategoryForm(FlaskForm):
 
 class PostForm(FlaskForm):
     title = StringField('제목', validators=[DataRequired(), Length(min=1, max=200)])
-    content = TextAreaField('내용', validators=[DataRequired()])
+    content = TextAreaField('내용', validators=[DataRequired()], render_kw={'required': False})
     image = FileField('커버 이미지 (선택 사항)')
     alt_text = StringField('이미지 설명 (Alt Text)', validators=[Length(max=200)]) 
     video_embed_url = StringField('동영상 URL (선택 사항)', validators=[Optional(), URLValidator(), Length(max=300)]) 

@@ -145,8 +145,43 @@
     document.addEventListener('DOMContentLoaded', function(){
         const contentElement = document.getElementById('content');
         const autosaveKey = contentElement.dataset.autosaveKey;    
+
+        // Add event listener to form submission to trigger TinyMCE save
+        document.querySelector('form').addEventListener('submit', function(e) {
+            // First prevent default submission to handle validation ourselves
+            e.preventDefault();
+            
+            // Save TinyMCE content to form field
+            tinymce.triggerSave();
+            
+            // Check if content is empty and show validation error if needed
+            const contentField = document.getElementById('content');
+            if (!contentField.value.trim()) {
+                // Show validation error
+                contentField.classList.add('is-invalid');
+                if (!contentField.nextElementSibling || !contentField.nextElementSibling.classList.contains('invalid-feedback')) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'invalid-feedback';
+                    errorDiv.innerHTML = '<span>This field is required.</span>';
+                    contentField.parentNode.insertBefore(errorDiv, contentField.nextSibling);
+                }
+                return;
+            } else {
+                // Remove any validation error
+                contentField.classList.remove('is-invalid');
+                const errorDiv = contentField.nextElementSibling;
+                if (errorDiv && errorDiv.classList.contains('invalid-feedback')) {
+                    errorDiv.remove();
+                }
+            }
+            
+            // Submit the form
+            this.submit();
+        });
+
         tinymce.init({
             selector: '#content',
+            license_key: 'gpl', // Add license key for open source usage
             skin: 'oxide-dark', // Modern dark skin for the UI
             content_css: 'dark', // Dark theme for the content area
             ui_mode: 'split', // Separates menubar and toolbar

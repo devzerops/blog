@@ -3,7 +3,7 @@ from flask import (
     request, flash, current_app, send_from_directory, jsonify, session, Response, abort, send_file, make_response
 )
 from app.auth import token_required, admin_required # Keep for reference if needed, but new logic below
-from app.models import Post, User, Comment, PageView, SiteSetting, Category # Ensure Tag is imported if used
+from app.models import Post, User, Comment, PageView, SiteSetting, Category # Tag model not used, tags are stored as comma-separated strings
 from app.forms import PostForm, SettingsForm, DeleteForm, ImportForm, SiteSettingsForm, CategoryForm # Added SiteSettingsForm, CategoryForm
 from app.database import db
 from werkzeug.utils import secure_filename
@@ -27,53 +27,8 @@ from sqlalchemy import func # Added func
 
 bp_admin = Blueprint('admin', __name__)
 
-# Decorator to check if user is admin
-from functools import wraps
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        token = session.get('admin_token')
-        if not token:
-            flash('관리자 권한이 필요합니다. 이 페이지에 접근하려면 관리자로 로그인해주세요.', 'warning')
-            return redirect(url_for('auth.login_page', next=request.url)) # Corrected endpoint
-        try:
-            # Attempt to decode the token and get user_id
-            data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=["HS256"])
-            user_id = data.get('user_id')
-            if not user_id:
-                raise jwt.InvalidTokenError("Token does not contain user_id.")
-            
-            # Fetch the user from the database
-            user = User.query.get(user_id)
-            if not user:
-                raise jwt.InvalidTokenError("User not found for token.")
-            
-            # Check if the user is an admin (e.g., by username or a specific role/flag if you have one)
-            # For now, assuming any user with an admin_token is an admin, 
-            # but you might want to add more specific checks, e.g., user.is_admin or user.role == 'admin'
-            # admin_username = current_app.config.get('ADMIN_USERNAME', 'admin') 
-            # if user.username != admin_username:
-            #     flash('이 작업을 수행하려면 관리자 권한이 필요합니다.', 'danger')
-            #     return redirect(url_for('public.post_list'))
-
-            # Pass the user object to the decorated function
-            return f(user, *args, **kwargs) 
-
-        except jwt.ExpiredSignatureError:
-            flash('세션이 만료되었습니다. 다시 로그인해주세요.', 'warning')
-            session.pop('admin_token', None)
-            return redirect(url_for('auth.login_page', next=request.url)) # Corrected endpoint
-        except jwt.InvalidTokenError as e:
-            flash(f'유효하지 않은 토큰이거나 사용자 정보 오류입니다: {e}', 'danger')
-            session.pop('admin_token', None)
-            return redirect(url_for('auth.login_page')) # Corrected endpoint
-        except Exception as e:
-            current_app.logger.error(f"Admin Auth Error: {e}")
-            flash('인증 중 오류가 발생했습니다.', 'danger')
-            session.pop('admin_token', None)
-            return redirect(url_for('auth.login_page')) # Corrected endpoint
-
-    return decorated_function
+# Use the admin_required decorator from auth.py
+# No need to redefine it here as it's already imported at the top
 
 def _allowed_file(filename):
     return '.' in filename and \
@@ -139,10 +94,10 @@ def new_post(current_user):
     if form.validate_on_submit():
         # Handle cover image upload and optimization
         cover_image_filename = None
-        if form.cover_image.data:
-            filename = secure_filename(form.cover_image.data.filename)
+        if form.image.data:
+            filename = secure_filename(form.image.data.filename)
             filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-            form.cover_image.data.save(filepath)
+            form.image.data.save(filepath)
             # Optimize image
             optimized_filepath = optimize_image(filepath)
             cover_image_filename = os.path.basename(optimized_filepath) # Save only the filename
@@ -150,11 +105,10 @@ def new_post(current_user):
         post = Post(
             title=form.title.data,
             content=form.content.data,
-            summary=form.summary.data,
             user_id=current_user.id, # Assuming current_user is available and has an id
-            cover_image_filename=cover_image_filename,
-            cover_image_alt_text=form.cover_image_alt_text.data,
-            video_url=form.video_url.data,
+            image_filename=cover_image_filename, # Using the cover_image_filename variable but assigning to image_filename field
+            alt_text=form.alt_text.data, # Changed from cover_image_alt_text
+            video_embed_url=form.video_embed_url.data, # Changed from video_url,
             # tags=form.tags.data, # Will be handled by tag processing logic below
             is_published=form.is_published.data,
             category_id=form.category.data.id if form.category.data else None # Save category ID
@@ -165,20 +119,9 @@ def new_post(current_user):
         db.session.add(post)
         db.session.commit()
 
-        # Process tags after post is committed (to get post.id)
-        raw_tags = form.tags.data
-        if raw_tags:
-            tag_names = [name.strip() for name in raw_tags.split(',') if name.strip()]
-            for tag_name in tag_names:
-                tag = Tag.query.filter_by(name=tag_name).first()
-                if not tag:
-                    tag = Tag(name=tag_name)
-                    db.session.add(tag)
-                    # Commit here if you want to ensure tag exists before associating
-                    # or commit along with post_tag association later
-                if tag not in post.tags:
-                    post.tags.append(tag)
-            db.session.commit() # Commit tag associations
+        # Assign tags directly as a comma-separated string
+        post.tags = form.tags.data
+        db.session.commit()
 
         flash('Post created successfully!', 'success')
         return redirect(url_for('admin.dashboard'))
@@ -192,9 +135,9 @@ def edit_post(current_user, post_id):
 
     if form.validate_on_submit():
         # Handle cover image upload and optimization
-        if form.cover_image.data:
+        if form.image.data:
             # If there's an old image and a new one is uploaded, delete the old one
-            if post.cover_image_filename:
+            if post.image_filename: # Changed from cover_image_filename
                 old_image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], post.cover_image_filename)
                 if os.path.exists(old_image_path):
                     try:
@@ -202,17 +145,16 @@ def edit_post(current_user, post_id):
                     except OSError as e:
                         flash(f'Error deleting old cover image: {e}', 'warning')
             
-            filename = secure_filename(form.cover_image.data.filename)
+            filename = secure_filename(form.image.data.filename)
             filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-            form.cover_image.data.save(filepath)
+            form.image.data.save(filepath)
             optimized_filepath = optimize_image(filepath)
-            post.cover_image_filename = os.path.basename(optimized_filepath)
+            post.image_filename = os.path.basename(optimized_filepath) # Changed from cover_image_filename
 
         post.title = form.title.data
         post.content = form.content.data
-        post.summary = form.summary.data
-        post.cover_image_alt_text = form.cover_image_alt_text.data
-        post.video_url = form.video_url.data
+        post.alt_text = form.alt_text.data # Changed from cover_image_alt_text
+        post.video_embed_url = form.video_embed_url.data # Changed from video_url
         post.category_id = form.category.data.id if form.category.data else None # Update category ID
 
         # Handle published status
@@ -224,18 +166,8 @@ def edit_post(current_user, post_id):
 
         post.updated_at = datetime.utcnow()
 
-        # Process tags
-        post.tags.clear() # Clear existing tags before adding new ones
-        raw_tags = form.tags.data
-        if raw_tags:
-            tag_names = [name.strip() for name in raw_tags.split(',') if name.strip()]
-            for tag_name in tag_names:
-                tag = Tag.query.filter_by(name=tag_name).first()
-                if not tag:
-                    tag = Tag(name=tag_name)
-                    db.session.add(tag)
-                if tag not in post.tags:
-                    post.tags.append(tag)
+        # Assign tags directly as a comma-separated string
+        post.tags = form.tags.data
 
         db.session.commit()
         flash('Post updated successfully!', 'success')
@@ -245,7 +177,7 @@ def edit_post(current_user, post_id):
         if post.category_id:
             form.category.data = Category.query.get(post.category_id)
         # Populate tags for GET request (already handled by obj=post for other fields)
-        form.tags.data = ', '.join([tag.name for tag in post.tags])
+        form.tags.data = post.tags
 
     return render_template('edit_post.html', title='Edit Post', form=form, post=post, legend=f'Edit "{post.title}"', current_user=current_user)
 
@@ -320,7 +252,7 @@ def export_all_content(current_user): # Re-added current_user argument
         posts_data = []
         for post in all_posts:
             relative_image_path = None
-            if post.cover_image_filename:
+            if post.image_filename: # Changed from cover_image_filename
                 original_image_relative_path = post.cover_image_filename
                 image_filename_only = os.path.basename(original_image_relative_path)
                 source_image_path_in_zip = os.path.join(current_app.static_folder, 'uploads', image_filename_only)
