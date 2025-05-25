@@ -14,83 +14,125 @@
         console.log('CSRF 토큰 상태:', window.CSRF_TOKEN ? 'CSRF 토큰 있음' : 'CSRF 토큰 없음');
     </script>
     
-    <!-- CKEditor 5 - 더 많은 기능이 포함된 Balloon 빌드 사용 -->
-    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/balloon-block/ckeditor.js"></script>
-    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/balloon-block/translations/ko.js"></script>
-    
-    <!-- CKEditor 이미지 업로드 어댑터 -->
-    <script>
+    <!-- CKEditor 5 - Classic 빌드 사용 (이미지 드래그 조절 지원) -->
+    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/classic/ckeditor.js"></script>
+    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/classic/translations/ko.js"></script>
+    <!-- 이미지 레이아웃 스타일 추가 -->
+    <style>
+        /* 이미지 스타일 - 왼쪽 정렬 */
+        .image-style-align-left {
+            float: left;
+            margin-right: 20px;
+        }
         
-        class CustomUploadAdapter {
+        /* 이미지 스타일 - 오른쪽 정렬 */
+        .image-style-align-right {
+            float: right;
+            margin-left: 20px;
+        }
+        
+        /* 이미지 스타일 - 가운데 정렬 */
+        .image-style-align-center {
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
+        }
+        
+        /* 이미지 캡션 스타일 */
+        .image figcaption {
+            text-align: center;
+            font-style: italic;
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
+    
+    <!-- CKEditor 이미지 업로드 어댑터 - Classic 빌드용 -->
+    <script>
+        // 커스텀 업로드 어댑터 클래스
+        class MyUploadAdapter {
             constructor(loader) {
+                // CKEditor 5 파일 로더 인스턴스
                 this.loader = loader;
             }
 
+            // 업로드 시작
             upload() {
-                return this.loader.file.then(file => {
-                    return new Promise((resolve, reject) => {
-                        const data = new FormData();
-                        data.append('file', file);
-                        
-                        // CSRF 토큰 추가 - Flask-WTF CSRF 보호를 위해 필수
-                        if (window.CSRF_TOKEN) {
-                            data.append('csrf_token', window.CSRF_TOKEN);
-                            console.log('CSRF 토큰이 요청에 추가됨');
-                        }
-
-                        // 서버에 요청 보내기
-                        const xhr = new XMLHttpRequest();
-                        xhr.open('POST', '{{ url_for("admin.upload_editor_image") }}');
-                        
-                        // 인증 토큰 추가 - 전역변수 window.ADMIN_TOKEN 사용
-                        if (window.ADMIN_TOKEN) {
-                            xhr.setRequestHeader('Authorization', 'Bearer ' + window.ADMIN_TOKEN);
-                            console.log('인증 토큰 전송 완료');
-                        } else {
-                            console.error('인증 토큰이 없습니다.');
-                            reject('인증 토큰이 없습니다. 로그아웃 되었을 수 있으니 다시 로그인해주세요.');
-                            return;
-                        }
-                        
-                        // 응답 처리
-                        xhr.onload = () => {
-                            console.log('서버 응답:', xhr.status, xhr.responseText);
-                            if (xhr.status >= 200 && xhr.status < 300) {
-                                try {
-                                    const response = JSON.parse(xhr.responseText);
-                                    if (response && response.location) {
-                                        resolve({ default: response.location });
-                                    } else {
-                                        reject('유효한 이미지 URL이 없습니다: ' + xhr.responseText);
-                                    }
-                                } catch (e) {
-                                    reject('서버 응답을 처리하는 중 오류 발생: ' + e.message);
-                                }
-                            } else {
-                                reject('업로드 실패. 서버 상태: ' + xhr.status + ', 응답: ' + xhr.responseText);
+                return this.loader.file
+                    .then(file => {
+                        return new Promise((resolve, reject) => {
+                            const data = new FormData();
+                            data.append('file', file);
+                            
+                            // CSRF 토큰 추가
+                            if (window.CSRF_TOKEN) {
+                                data.append('csrf_token', window.CSRF_TOKEN);
+                                console.log('CSRF 토큰이 요청에 추가됨');
                             }
-                        };
-                        
-                        // 오류 처리
-                        xhr.onerror = () => {
-                            console.error('네트워크 오류 발생');
-                            reject('네트워크 오류로 업로드 실패');
-                        };
-                        
-                        // 요청 전송
-                        xhr.send(data);
+
+                            // XMLHttpRequest 사용
+                            const xhr = new XMLHttpRequest();
+                            xhr.open('POST', '{{ url_for("admin.upload_editor_image") }}');
+                            
+                            // 인증 토큰 추가
+                            if (window.ADMIN_TOKEN) {
+                                xhr.setRequestHeader('Authorization', 'Bearer ' + window.ADMIN_TOKEN);
+                                console.log('인증 토큰 전송 완료');
+                            } else {
+                                console.error('인증 토큰이 없습니다.');
+                                reject('인증 토큰이 없습니다. 로그아웃 되었을 수 있으니 다시 로그인해주세요.');
+                                return;
+                            }
+                            
+                            // 요청 완료시 처리
+                            xhr.onload = () => {
+                                console.log('서버 응답:', xhr.status, xhr.responseText);
+                                if (xhr.status >= 200 && xhr.status < 300) {
+                                    try {
+                                        const response = JSON.parse(xhr.responseText);
+                                        // 성공적으로 이미지 URL을 받으면 resolve
+                                        if (response && response.location) {
+                                            resolve({ default: response.location });
+                                        } else {
+                                            reject('유효한 이미지 URL이 없습니다.');
+                                        }
+                                    } catch (e) {
+                                        reject('서버 응답을 처리하는 중 오류 발생: ' + e.message);
+                                    }
+                                } else {
+                                    reject('업로드 실패. 서버 상태: ' + xhr.status + ', 응답: ' + xhr.responseText);
+                                }
+                            };
+                            
+                            // 오류 처리
+                            xhr.onerror = () => {
+                                reject('네트워크 오류로 업로드 실패');
+                            };
+                            
+                            // 업로드 진행상황 모니터링
+                            xhr.upload.onprogress = evt => {
+                                if (evt.lengthComputable) {
+                                    this.loader.uploadTotal = evt.total;
+                                    this.loader.uploaded = evt.loaded;
+                                }
+                            };
+                            
+                            // 요청 전송
+                            xhr.send(data);
+                        });
                     });
-                });
             }
 
+            // 업로드 취소
             abort() {
-                // 업로드 취소 로직 (필요시 구현)
+                // 취소 로직 구현 (필요시)
             }
         }
 
-        function CustomUploadAdapterPlugin(editor) {
+        // 업로드 어댑터 플러그인 함수
+        function MyCustomUploadAdapterPlugin(editor) {
             editor.plugins.get('FileRepository').createUploadAdapter = (loader) => {
-                return new CustomUploadAdapter(loader);
+                return new MyUploadAdapter(loader);
             };
         }
     </script>
@@ -246,49 +288,58 @@
         const contentElement = document.getElementById('content');
         const autosaveKey = contentElement.dataset.autosaveKey;
 
-        // CKEditor Balloon-Block 초기화
-        BalloonEditor
+        // CKEditor Classic 초기화 - 이미지 크기 조절 기능 포함
+        ClassicEditor
             .create(document.querySelector('#editor'), {
                 placeholder: '내용을 입력하세요...',
                 language: 'ko',
-                // 커스텀 업로드 어댑터 플러그인 사용
-                extraPlugins: [ CustomUploadAdapterPlugin ],
-                // 블록 툴바 - 사용 가능한 아이템만 포함
-                blockToolbar: [
-                    'heading', '|',
-                    'bulletedList', 'numberedList', '|',
-                    'insertTable', 'imageUpload', 'blockQuote', '|',
-                    'undo', 'redo'
-                ],
-                // 벌룬 툴바
-                balloonToolbar: [
-                    'bold', 'italic', 'link', 'imageUpload'
-                ],
-                // 이미지 업로드 구성
+                // 커스텀 업로드 어댑터 사용
+                extraPlugins: [MyCustomUploadAdapterPlugin],
+                // 툴바 구성
+                toolbar: {
+                    items: [
+                        'heading',
+                        '|',
+                        'bold',
+                        'italic',
+                        'link',
+                        'bulletedList',
+                        'numberedList',
+                        '|',
+                        'insertTable',
+                        'uploadImage',
+                        'blockQuote',
+                        '|',
+                        'undo',
+                        'redo'
+                    ]
+                },
+                // 이미지 관련 설정
                 image: {
-                    toolbar: [
-                        'imageTextAlternative', 'toggleImageCaption',
-                        'imageStyle:inline', 'imageStyle:block', 'imageStyle:side'
-                    ],
+                    // 이미지 스타일 설정
                     styles: [
-                        'full', 'alignLeft', 'alignRight'
+                        'alignLeft', 'alignCenter', 'alignRight'
                     ],
-                    resizeOptions: [
-                        {
-                            name: 'resizeImage:original',
-                            label: '원본 크기',
-                            value: null
-                        },
-                        {
-                            name: 'resizeImage:50',
-                            label: '50%',
-                            value: '50'
-                        },
-                        {
-                            name: 'resizeImage:75',
-                            label: '75%',
-                            value: '75'
-                        }
+                    // 이미지 툴바 구성
+                    toolbar: [
+                        'imageStyle:alignLeft', 'imageStyle:alignCenter', 'imageStyle:alignRight',
+                        '|',
+                        'imageTextAlternative',
+                        '|',
+                        'toggleImageCaption'
+                    ],
+                    // 이미지 드래그로 크기 조절 활성화
+                    resizeOptions: {
+                        buttons: true,  // 크기 조절 버튼 표시
+                        ui: true        // 드래그 허용
+                    }
+                },
+                // 테이블 구성
+                table: {
+                    contentToolbar: [
+                        'tableColumn',
+                        'tableRow',
+                        'mergeTableCells'
                     ]
                 }
             })
@@ -296,9 +347,115 @@
                 // 에디터 인스턴스 저장
                 window.editor = editor;
                 
-                // 폼 제출 시 hidden input에 내용 저장
-                document.querySelector('form').addEventListener('submit', function(e) {
-                    document.getElementById('content').value = editor.getData();
+                console.log('CKEditor 초기화 완료');
+                
+                // 폼 제출 시 hidden input에 내용 저장 (완전히 개선된 버전)
+                const form = document.querySelector('form');
+                const contentField = document.getElementById('content');
+                
+                // 폼 제출을 아예 다른 방식으로 처리
+                // 제출 버튼에 클릭 이벤트 리스너 추가
+                document.querySelectorAll('button[type="submit"]').forEach(button => {
+                    button.addEventListener('click', function(e) {
+                        // 기본 제출 동작 차단
+                        e.preventDefault();
+                        
+                        const buttonName = this.name;
+                        const buttonValue = this.value;
+                        
+                        console.log('버튼 클릭됨:', buttonName, buttonValue);
+                        
+                        try {
+                            // 에디터 내용 가져오기
+                            const editorContent = editor.getData();
+                            
+                            // 디버깅용 로그
+                            console.log('에디터 내용 길이:', editorContent.length);
+                            console.log('에디터 내용 일부:', editorContent.substring(0, 100) + '...');
+                            
+                            if (editorContent.trim().length === 0) {
+                                alert('내용을 입력해주세요.');
+                                return;
+                            }
+                            
+                            // 폼 새로 만들기
+                            const newForm = document.createElement('form');
+                            newForm.method = 'POST';
+                            // 정확한 현재 URL을 action으로 사용
+                            newForm.action = window.location.href;
+                            console.log('폼 action URL:', newForm.action);
+                            newForm.enctype = 'multipart/form-data';
+                            
+                            // CSRF 토큰 추가
+                            const csrfField = document.querySelector('input[name="csrf_token"]');
+                            if (csrfField) {
+                                const csrfInput = document.createElement('input');
+                                csrfInput.type = 'hidden';
+                                csrfInput.name = 'csrf_token';
+                                csrfInput.value = csrfField.value;
+                                newForm.appendChild(csrfInput);
+                            }
+                            
+                            // 제목 추가
+                            const titleField = document.querySelector('input[name="title"]');
+                            if (titleField) {
+                                const titleInput = document.createElement('input');
+                                titleInput.type = 'hidden';
+                                titleInput.name = 'title';
+                                titleInput.value = titleField.value;
+                                newForm.appendChild(titleInput);
+                            }
+                            
+                            // 내용 추가 (에디터에서 가져온 내용)
+                            const contentInput = document.createElement('input');
+                            contentInput.type = 'hidden';
+                            contentInput.name = 'content';
+                            contentInput.value = editorContent;
+                            newForm.appendChild(contentInput);
+                            
+                            // 버튼 정보 추가
+                            const buttonInput = document.createElement('input');
+                            buttonInput.type = 'hidden';
+                            buttonInput.name = buttonName;
+                            buttonInput.value = buttonValue || 'true';
+                            newForm.appendChild(buttonInput);
+                            
+                            // 그 외 필요한 필드들 추가
+                            const otherFields = form.querySelectorAll('input:not([type="submit"]), select, textarea');
+                            otherFields.forEach(field => {
+                                if (field.name && field.name !== 'content' && field.name !== 'title' && field.name !== 'csrf_token') {
+                                    const input = document.createElement('input');
+                                    input.type = 'hidden';
+                                    input.name = field.name;
+                                    input.value = field.value;
+                                    newForm.appendChild(input);
+                                }
+                            });
+                            
+                            // 폼을 동적으로 생성하고 제출
+                            document.body.appendChild(newForm);
+                            console.log('새 폼 제출 준비 완료');
+                            newForm.submit();
+                            console.log('폼 제출됨');
+                            
+                        } catch (error) {
+                            console.error('폼 제출 중 오류 발생:', error);
+                            alert('게시글 저장 중 오류가 발생했습니다. 다시 시도해주세요.');
+                        }
+                    });
+                });
+                
+                // 기존 폼 제출 이벤트는 무시
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    console.log('기존 폼 제출 차단됨 - 이 메시지가 보이면 정상');
+                });
+                
+                // 버튼 클릭 시 테스트
+                document.querySelectorAll('button[type="submit"]').forEach(button => {
+                    button.addEventListener('click', function() {
+                        console.log('제출 버튼 클릭됨:', this.name, this.value);
+                    });
                 });
                 
                 // 이제 simpleUpload 플러그인을 통해 이미지 업로드가 자동으로 처리됨

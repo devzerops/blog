@@ -91,6 +91,19 @@ def admin_posts(current_user):
 @admin_required
 def new_post(current_user):
     form = PostForm()
+    # 폼 제출 및 검증 디버깅
+    if request.method == 'POST':
+        current_app.logger.info(f"POST 요청 받음: {request.form.keys()}")
+        current_app.logger.info(f"content 필드 값: {request.form.get('content')[:100] if request.form.get('content') else 'None'}")
+        current_app.logger.info(f"title 필드 값: {request.form.get('title')[:100] if request.form.get('title') else 'None'}")
+        
+        # 폼 검증 오류 로깅
+        if not form.validate_on_submit():
+            for field, errors in form.errors.items():
+                current_app.logger.error(f"Field {field} failed validation with errors: {errors}")
+            return render_template('edit_post.html', title='New Post', form=form, legend='New Post', current_user=current_user)
+    
+    # 폼 검증 성공
     if form.validate_on_submit():
         # Handle cover image upload and optimization
         cover_image_filename = None
