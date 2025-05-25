@@ -59,3 +59,6 @@ def get_current_user_if_logged_in():
     except Exception as e:
         current_app.logger.error(f"Error decoding token for optional login: {e}")
         return None
+
+# Alias for admin routes, can be expanded later if different admin roles/permissions are needed
+admin_required = token_required

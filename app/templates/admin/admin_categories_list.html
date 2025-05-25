@@ -1,0 +1,49 @@
+{% extends "admin/admin_base.html" %}
+{% import "bootstrap_wtf.html" as wtf %}
+
+{% block admin_content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>{{ title }}</h2>
+        <a href="{{ url_for('admin.admin_new_category') }}" class="btn btn-primary">Add New Category</a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if categories %}
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>Category Name</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for category in categories %}
+            <tr>
+                <td>{{ category.name }}</td>
+                <td>
+                    <a href="{{ url_for('admin.admin_edit_category', category_id=category.id) }}" class="btn btn-sm btn-outline-secondary me-2">Edit</a>
+                    <form action="{{ url_for('admin.admin_delete_category', category_id=category.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this category? Posts in this category will NOT be deleted but will become uncategorized.');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No categories found. <a href="{{ url_for('admin.admin_new_category') }}">Add one now!</a></p>
+    {% endif %}
+</div>
+{% endblock %}

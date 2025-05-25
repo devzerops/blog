@@ -2,7 +2,12 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, PasswordField, TextAreaField, FileField, BooleanField, IntegerField, URLField
 from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError, Optional, URL as URLValidator, NumberRange
 from flask_wtf.file import FileField, FileAllowed
-from app.models import User
+from app.models import User, Post, SiteSetting, Category
+from wtforms_sqlalchemy.fields import QuerySelectField
+
+# Helper function for category query
+def category_query():
+    return Category.query.order_by(Category.name).all()
 
 class LoginForm(FlaskForm):
     username = StringField('사용자 아이디', validators=[DataRequired(), Length(min=3, max=64)])
@@ -30,6 +35,10 @@ class RegistrationForm(FlaskForm):
     #     if user is not None:
     #         raise ValidationError('Please use a different email address.')
 
+class CategoryForm(FlaskForm):
+    name = StringField('Category Name', validators=[DataRequired(), Length(min=1, max=100)])
+    submit = SubmitField('Save Category')
+
 class PostForm(FlaskForm):
     title = StringField('제목', validators=[DataRequired(), Length(min=1, max=200)])
     content = TextAreaField('내용', validators=[DataRequired()])
@@ -38,6 +47,14 @@ class PostForm(FlaskForm):
     video_embed_url = StringField('동영상 URL (선택 사항)', validators=[Optional(), URLValidator(), Length(max=300)]) 
     tags = StringField('태그 (쉼표로 구분)', validators=[Optional(), Length(max=255)]) 
     meta_description = TextAreaField('메타 설명 (SEO, 선택 사항)', validators=[Optional(), Length(max=300)]) 
+    category = QuerySelectField(
+        'Category',
+        query_factory=category_query,
+        get_label='name',
+        allow_blank=True,
+        blank_text='-- Select a Category --',
+        validators=[Optional()]
+    )
     is_published = BooleanField('공개 발행', default=True)
     submit = SubmitField('저장')
 

@@ -1,0 +1,96 @@
+{% macro render_field(field, form_type="basic", horizontal_columns=('lg', 2, 10), button_map={}) %}
+    {% if field.widget.input_type == 'checkbox' %}
+        <div class="form-check mb-3">
+            {{ field(class="form-check-input " + ("is-invalid" if field.errors else "")) }}
+            {{ field.label(class="form-check-label") }}
+            {% if field.errors %}
+                {% for error in field.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+            {% if field.description %}
+                <small class="form-text text-muted">{{ field.description }}</small>
+            {% endif %}
+        </div>
+    {% elif field.type == 'RadioField' %}
+        <div class="mb-3">
+            {{ field.label(class="form-label") }}
+            {% for subfield in field %}
+            <div class="form-check">
+                {{ subfield(class="form-check-input " + ("is-invalid" if field.errors else "")) }}
+                {{ subfield.label(class="form-check-label") }}
+            </div>
+            {% endfor %}
+            {% if field.errors %}
+                {% for error in field.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+            {% if field.description %}
+                <small class="form-text text-muted">{{ field.description }}</small>
+            {% endif %}
+        </div>
+    {% elif field.type == 'SubmitField' %}
+         {{ field(class="btn " + button_map.get(field.id, "btn-primary")) }}
+    {% elif field.type == 'FormField' %} {# For FieldList of FormFields #}
+        <fieldset class="mb-3">
+            <legend>{{ field.label }}</legend>
+            {% for subfield_form in field %}
+                <div class="subform-entry border p-3 mb-3">
+                {% for subfield in subfield_form %}
+                    {{ render_field(subfield, form_type=form_type, horizontal_columns=horizontal_columns, button_map=button_map) }}
+                {% endfor %}
+                </div>
+            {% endfor %}
+            {% if field.errors %}
+                {% for error in field.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+        </fieldset>
+    {% else %} {# For most other fields #}
+        <div class="mb-3">
+            {{ field.label(class="form-label") }}
+            {{ field(class="form-control " + ("is-invalid" if field.errors else ""), **kwargs) }}
+            {% if field.errors %}
+                {% for error in field.errors %}
+                    <div class="invalid-feedback">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+            {% if field.description %}
+                <small class="form-text text-muted">{{ field.description }}</small>
+            {% endif %}
+        </div>
+    {% endif %}
+{% endmacro %}
+
+{% macro render_form(form, action_url="", method="post", enctype=None, form_type="basic", horizontal_columns=('lg', 2, 10), button_map={}, extra_buttons=None, novalidate=False, render_submit=True, csrf_token_field=True) %}
+<form action="{{ action_url }}" method="{{ method }}"
+    {% if enctype %}enctype="{{ enctype }}"{% endif %}
+    {% if novalidate %}novalidate{% endif %}
+    role="form">
+    {% if csrf_token_field and form.csrf_token %}
+        {{ form.csrf_token }}
+    {% endif %}
+    
+    {% for field in form if field.widget.input_type != 'hidden' and field.id != 'csrf_token' and (render_submit or field.type != 'SubmitField') %}
+        {{ render_field(field, form_type=form_type, horizontal_columns=horizontal_columns, button_map=button_map) }}
+    {% endfor %}
+
+    {% if render_submit and form.submit %} {# Check if a submit field exists and should be rendered #}
+        {{ render_field(form.submit, button_map=button_map) }}
+    {% endif %}
+
+    {% if extra_buttons %}
+        {% for button in extra_buttons %}
+            {{ button | safe }}
+        {% endfor %}
+    {% endif %}
+</form>
+{% endmacro %}
+
+{% macro render_hidden_fields(form) %}
+    {% for field in form if field.widget.input_type == 'hidden' or field.id == 'csrf_token' %}
+        {{ field() }}
+    {% endfor %}
+{% endmacro %}

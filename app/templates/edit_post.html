@@ -100,6 +100,18 @@
                         </div>
 
                         <div class="mb-3">
+                            {{ form.category.label(class="form-label") }}
+                            {{ form.category(class="form-select") }}
+                            {% if form.category.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.category.errors %}
+                                        <span>{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
                             {{ form.tags.label(class="form-label") }}
                             {{ form.tags(class="form-control" + (" is-invalid" if form.tags.errors else ""), placeholder="tag1, tag2, tag3") }}
                             {% if form.tags.errors %}
@@ -115,7 +127,7 @@
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary me-md-2">Cancel</a>
                             <button type="submit" name="save_draft" value="true" class="btn btn-info me-md-2">Save Draft</button>
-                            <button type="submit" name="publish" value="true" class="btn btn-primary">Publish</button>
+                            <button type="submit" name="publish" value="true" class="btn btn-primary">{{ 'Publish' if not post else 'Update Post' }}</button>
                         </div>
                     </div>
                 </div>

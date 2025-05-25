@@ -2,9 +2,9 @@ from flask import (
     Blueprint, render_template, redirect, url_for, 
     request, flash, current_app, send_from_directory, jsonify, session, Response, abort, send_file, make_response
 )
-from app.auth import token_required # Keep for reference if needed, but new logic below
-from app.models import Post, User, Comment, PageView, SiteSetting # Added SiteSetting
-from app.forms import PostForm, SettingsForm, DeleteForm, ImportForm, SiteSettingsForm # Added SiteSettingsForm
+from app.auth import token_required, admin_required # Keep for reference if needed, but new logic below
+from app.models import Post, User, Comment, PageView, SiteSetting, Category # Ensure Tag is imported if used
+from app.forms import PostForm, SettingsForm, DeleteForm, ImportForm, SiteSettingsForm, CategoryForm # Added SiteSettingsForm, CategoryForm
 from app.database import db
 from werkzeug.utils import secure_filename
 import os
@@ -116,138 +116,153 @@ def dashboard(current_user):
     posts = posts_pagination.items
     return render_template('admin_dashboard.html', title='관리자 대시보드', posts=posts, pagination=posts_pagination, current_user=current_user)
 
+@bp_admin.route('/posts', methods=['GET'])
+@admin_required
+def admin_posts(current_user):
+    page = request.args.get('page', 1, type=int)
+    # Assuming you have a way to get posts_per_page, e.g., from SiteSettings or config
+    # For now, using a default or a value from app.config
+    posts_per_page = current_app.config.get('POSTS_PER_PAGE_ADMIN', 10) 
+    query = Post.query.order_by(Post.pub_date.desc())
+    pagination = query.paginate(page=page, per_page=posts_per_page, error_out=False)
+    posts = pagination.items
+    return render_template('admin/admin_posts_list.html', 
+                           posts=posts, 
+                           pagination=pagination, 
+                           title='Manage Posts', 
+                           current_user=current_user)
+
 @bp_admin.route('/post/new', methods=['GET', 'POST'])
-@token_required
+@admin_required
 def new_post(current_user):
     form = PostForm()
     if form.validate_on_submit():
-        filename = None
-        if form.image.data:
-            file = form.image.data
-            if _allowed_file(file.filename):
-                s_filename = secure_filename(file.filename)
-                filename = f"{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}_{s_filename}"
-                try:
-                    file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
-                    optimize_image(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
-                except Exception as e:
-                    flash(f'이미지 저장 중 오류 발생: {e}', 'danger')
-                    current_app.logger.error(f"Image save error: {e}")
-                    filename = None
-            else:
-                flash('허용되지 않는 이미지 파일 형식입니다.', 'warning')
-
-        # Determine if publishing or saving as draft
-        if 'publish' in request.form:
-            is_currently_published = True
-            current_published_at = datetime.now(timezone.utc)
-            flash_message = '새로운 글이 성공적으로 발행되었습니다!'
-        else: # Default to saving as draft if 'publish' is not in form (e.g., 'save_draft' was clicked)
-            is_currently_published = False
-            current_published_at = None
-            flash_message = '글이 임시 저장되었습니다.'
+        # Handle cover image upload and optimization
+        cover_image_filename = None
+        if form.cover_image.data:
+            filename = secure_filename(form.cover_image.data.filename)
+            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+            form.cover_image.data.save(filepath)
+            # Optimize image
+            optimized_filepath = optimize_image(filepath)
+            cover_image_filename = os.path.basename(optimized_filepath) # Save only the filename
 
         post = Post(
             title=form.title.data,
             content=form.content.data,
-            user_id=current_user.id,
-            image_filename=filename if filename else None,
-            alt_text=form.alt_text.data,
-            video_embed_url=form.video_embed_url.data,
-            meta_description=form.meta_description.data,
-            is_published=is_currently_published,
-            published_at=current_published_at,
-            tags=form.tags.data
+            summary=form.summary.data,
+            user_id=current_user.id, # Assuming current_user is available and has an id
+            cover_image_filename=cover_image_filename,
+            cover_image_alt_text=form.cover_image_alt_text.data,
+            video_url=form.video_url.data,
+            # tags=form.tags.data, # Will be handled by tag processing logic below
+            is_published=form.is_published.data,
+            category_id=form.category.data.id if form.category.data else None # Save category ID
         )
+        if form.is_published.data:
+            post.published_at = datetime.utcnow()
 
         db.session.add(post)
         db.session.commit()
-        flash(flash_message, 'success')
+
+        # Process tags after post is committed (to get post.id)
+        raw_tags = form.tags.data
+        if raw_tags:
+            tag_names = [name.strip() for name in raw_tags.split(',') if name.strip()]
+            for tag_name in tag_names:
+                tag = Tag.query.filter_by(name=tag_name).first()
+                if not tag:
+                    tag = Tag(name=tag_name)
+                    db.session.add(tag)
+                    # Commit here if you want to ensure tag exists before associating
+                    # or commit along with post_tag association later
+                if tag not in post.tags:
+                    post.tags.append(tag)
+            db.session.commit() # Commit tag associations
+
+        flash('Post created successfully!', 'success')
         return redirect(url_for('admin.dashboard'))
-    
-    admin_token = session.get('admin_token')
-    return render_template('edit_post.html', title='새 글 작성', form=form, post_id=None, current_user=current_user, admin_token=admin_token)
+    return render_template('edit_post.html', title='New Post', form=form, legend='New Post', current_user=current_user)
 
 @bp_admin.route('/post/edit/<int:post_id>', methods=['GET', 'POST'])
 @token_required
 def edit_post(current_user, post_id):
-    post = Post.query.filter_by(id=post_id, user_id=current_user.id).first_or_404()
-    form = PostForm(obj=post) # Pre-populate form
-    if request.method == 'GET':
-        form.title.data = post.title
-        form.content.data = post.content
-        form.is_published.data = post.is_published
-        form.meta_description.data = post.meta_description
-        form.alt_text.data = post.alt_text
-        form.video_embed_url.data = post.video_embed_url
-        form.tags.data = post.tags # Populate tags field
+    post = Post.query.get_or_404(post_id)
+    form = PostForm(obj=post)
 
     if form.validate_on_submit():
+        # Handle cover image upload and optimization
+        if form.cover_image.data:
+            # If there's an old image and a new one is uploaded, delete the old one
+            if post.cover_image_filename:
+                old_image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], post.cover_image_filename)
+                if os.path.exists(old_image_path):
+                    try:
+                        os.remove(old_image_path)
+                    except OSError as e:
+                        flash(f'Error deleting old cover image: {e}', 'warning')
+            
+            filename = secure_filename(form.cover_image.data.filename)
+            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+            form.cover_image.data.save(filepath)
+            optimized_filepath = optimize_image(filepath)
+            post.cover_image_filename = os.path.basename(optimized_filepath)
+
         post.title = form.title.data
         post.content = form.content.data
-        post.alt_text = form.alt_text.data
-        post.video_embed_url = form.video_embed_url.data
-        post.meta_description = form.meta_description.data
-        post.updated_at = datetime.now(timezone.utc)
-        post.tags = form.tags.data # Save tags string directly
+        post.summary = form.summary.data
+        post.cover_image_alt_text = form.cover_image_alt_text.data
+        post.video_url = form.video_url.data
+        post.category_id = form.category.data.id if form.category.data else None # Update category ID
 
-        # Determine if publishing or saving as draft
-        if 'publish' in request.form:
-            if not post.is_published: # If it was a draft and now being published
-                post.published_at = datetime.now(timezone.utc)
-            post.is_published = True
-            flash_message = '글이 성공적으로 발행되었습니다!'
-        else: # Default to saving as draft
-            if post.is_published: # If it was published and now being saved as draft
-                post.published_at = None # Clear published_at if it's now a draft
-            post.is_published = False
-            flash_message = '글이 임시 저장되었습니다.'
+        # Handle published status
+        if form.is_published.data and not post.is_published:
+            post.published_at = datetime.utcnow()
+        elif not form.is_published.data:
+            post.published_at = None # Clear published_at if unpublished
+        post.is_published = form.is_published.data
 
-        if form.image.data:
-            file = form.image.data
-            if _allowed_file(file.filename):
-                if post.image_filename:
-                    old_image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], post.image_filename)
-                    if os.path.exists(old_image_path):
-                        try: os.remove(old_image_path)
-                        except OSError as e: current_app.logger.error(f"Error deleting old image {old_image_path}: {e}")
-                
-                s_filename = secure_filename(file.filename)
-                new_filename = f"{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}_{s_filename}"
-                try:
-                    file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], new_filename))
-                    optimize_image(os.path.join(current_app.config['UPLOAD_FOLDER'], new_filename)) # Optimize the saved image
-                    post.image_filename = new_filename
-                except Exception as e:
-                    flash(f'이미지 업데이트 중 오류 발생: {e}', 'danger')
-                    current_app.logger.error(f"Image update error: {e}")
-            elif file.filename != '':
-                 flash('허용되지 않는 이미지 파일 형식입니다. 이미지는 업데이트되지 않았습니다.', 'warning')
+        post.updated_at = datetime.utcnow()
+
+        # Process tags
+        post.tags.clear() # Clear existing tags before adding new ones
+        raw_tags = form.tags.data
+        if raw_tags:
+            tag_names = [name.strip() for name in raw_tags.split(',') if name.strip()]
+            for tag_name in tag_names:
+                tag = Tag.query.filter_by(name=tag_name).first()
+                if not tag:
+                    tag = Tag(name=tag_name)
+                    db.session.add(tag)
+                if tag not in post.tags:
+                    post.tags.append(tag)
 
         db.session.commit()
-        flash(flash_message, 'success')
+        flash('Post updated successfully!', 'success')
         return redirect(url_for('admin.dashboard'))
-    
-    current_image_url = url_for('admin.uploaded_file', filename=post.image_filename) if post.image_filename else None
-    admin_token = session.get('admin_token')
-    return render_template('edit_post.html', title='글 수정', form=form, post_id=post.id, 
-                           current_image_url=current_image_url, current_user=current_user, 
-                           admin_token=admin_token, post_status=post.is_published)
+    elif request.method == 'GET':
+        # Populate form with existing category if available
+        if post.category_id:
+            form.category.data = Category.query.get(post.category_id)
+        # Populate tags for GET request (already handled by obj=post for other fields)
+        form.tags.data = ', '.join([tag.name for tag in post.tags])
+
+    return render_template('edit_post.html', title='Edit Post', form=form, post=post, legend=f'Edit "{post.title}"', current_user=current_user)
 
 @bp_admin.route('/post/delete/<int:post_id>', methods=['POST'])
 @token_required
 def delete_post(current_user, post_id):
     post = Post.query.filter_by(id=post_id, user_id=current_user.id).first_or_404()
     
-    if post.image_filename:
-        image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], post.image_filename)
+    if post.cover_image_filename:
+        image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], post.cover_image_filename)
         if os.path.exists(image_path):
             try: os.remove(image_path)
             except OSError as e: current_app.logger.error(f"Error deleting image {image_path}: {e}")
 
     db.session.delete(post)
     db.session.commit()
-    flash('글이 성공적으로 삭제되었습니다.', 'success')
+    flash('Post deleted successfully!', 'success')
     return redirect(url_for('admin.dashboard'))
 
 # Serves uploaded files from the UPLOAD_FOLDER (defined in config.py)
@@ -305,12 +320,14 @@ def export_all_content(current_user): # Re-added current_user argument
         posts_data = []
         for post in all_posts:
             relative_image_path = None
-            if post.image_filename:
-                source_image_path = os.path.join(current_app.static_folder, 'uploads', post.image_filename)
-                if os.path.exists(source_image_path):
+            if post.cover_image_filename:
+                original_image_relative_path = post.cover_image_filename
+                image_filename_only = os.path.basename(original_image_relative_path)
+                source_image_path_in_zip = os.path.join(current_app.static_folder, 'uploads', image_filename_only)
+                if os.path.exists(source_image_path_in_zip):
                     # Copy image to temp dir
-                    shutil.copy(source_image_path, images_temp_dir)
-                    relative_image_path = f'images/{post.image_filename}' # Path within the zip
+                    shutil.copy(source_image_path_in_zip, images_temp_dir)
+                    relative_image_path = f'images/{post.cover_image_filename}' # Path within the zip
             
             post_item = {
                 'id': post.id,
@@ -454,7 +471,7 @@ def data_restore(current_user): # Renamed function, current_user is used here
                             updated_at=updated_at_dt,
                             is_published=post_data.get('is_published', False),
                             published_at=published_at_dt,
-                            image_filename=new_image_filename,
+                            cover_image_filename=new_image_filename,
                             tags=post_data.get('tags'),
                             meta_description=post_data.get('meta_description'),
                             slug=post_data.get('slug'),
@@ -574,7 +591,7 @@ def profile_settings(current_user_from_token):
         flash('관리자 프로필 설정이 성공적으로 저장되었습니다.', 'success')
         return redirect(url_for('admin.profile_settings')) # Redirect to the new URL
     
-    # For GET requests, populate form fields that are not directly mapped by obj if necessary
+    # For GET request, populate form fields that are not directly mapped by obj if necessary
     # Example: form.username.data = current_user_from_token.username (already handled by obj)
 
     return render_template('admin_profile_settings.html', title='관리자 프로필 설정', form=form, current_user=current_user_from_token)
@@ -646,3 +663,111 @@ def site_settings(current_user): # current_user is passed by @admin_required
     # This is generally not an issue as FileField is not populated from obj like other fields.
 
     return render_template('admin/settings.html', title='사이트 설정', form=form, current_user=current_user)
+
+# Category Management
+@bp_admin.route('/categories', methods=['GET'])
+@admin_required
+def admin_categories(current_user):
+    categories = Category.query.order_by(Category.name).all()
+    return render_template('admin/admin_categories_list.html', categories=categories, title='Manage Categories', current_user=current_user)
+
+@bp_admin.route('/categories/new', methods=['GET', 'POST'])
+@admin_required
+def admin_new_category(current_user):
+    form = CategoryForm()
+    if form.validate_on_submit():
+        category_name = form.name.data
+        existing_category = Category.query.filter_by(name=category_name).first()
+        if existing_category:
+            flash('Category with this name already exists.', 'warning')
+        else:
+            new_category = Category(name=category_name)
+            db.session.add(new_category)
+            db.session.commit()
+            flash('Category added successfully.', 'success')
+            return redirect(url_for('admin.admin_categories'))
+    return render_template('admin/admin_category_form.html', form=form, title='Add New Category', legend='New Category', current_user=current_user)
+
+@bp_admin.route('/categories/edit/<int:category_id>', methods=['GET', 'POST'])
+@admin_required
+def admin_edit_category(current_user, category_id):
+    category = Category.query.get_or_404(category_id)
+    form = CategoryForm(obj=category)
+    if form.validate_on_submit():
+        category_name = form.name.data
+        # Check if another category with the new name already exists (excluding the current one)
+        existing_category = Category.query.filter(Category.name == category_name, Category.id != category_id).first()
+        if existing_category:
+            flash('Another category with this name already exists.', 'warning')
+        else:
+            category.name = category_name
+            db.session.commit()
+            flash('Category updated successfully.', 'success')
+            return redirect(url_for('admin.admin_categories'))
+    return render_template('admin/admin_category_form.html', form=form, title='Edit Category', legend=f'Edit {category.name}', category=category, current_user=current_user)
+
+@bp_admin.route('/categories/delete/<int:category_id>', methods=['POST'])
+@admin_required
+def admin_delete_category(current_user, category_id):
+    category = Category.query.get_or_404(category_id)
+    if category.posts.count() > 0:
+        flash('Cannot delete category. It is associated with one or more posts. Please reassign posts before deleting.', 'danger')
+        return redirect(url_for('admin.admin_categories'))
+    db.session.delete(category)
+    db.session.commit()
+    flash('Category deleted successfully.', 'success')
+    return redirect(url_for('admin.admin_categories'))
+
+# Tag Management (existing code) - Commenting out as Tag model is now a string field on Post
+# @bp_admin.route('/tags', methods=['GET'])
+# @admin_required
+# def admin_tags(current_user):
+#     tags = Tag.query.order_by(Tag.name).all()
+#     return render_template('admin/admin_tags_list.html', tags=tags, title='Manage Tags', current_user=current_user)
+# 
+# @bp_admin.route('/tags/new', methods=['GET', 'POST'])
+# @admin_required
+# def add_tag(current_user):
+#     form = TagForm()
+#     if form.validate_on_submit():
+#         tag_name = form.name.data
+#         existing_tag = Tag.query.filter_by(name=tag_name).first()
+#         if existing_tag:
+#             flash('Tag with this name already exists.', 'warning')
+#         else:
+#             new_tag = Tag(name=tag_name)
+#             db.session.add(new_tag)
+#             db.session.commit()
+#             flash('Tag added successfully.', 'success')
+#             return redirect(url_for('admin.admin_tags'))
+#     return render_template('admin/admin_tag_form.html', form=form, title='Add New Tag', legend='New Tag', current_user=current_user)
+# 
+# @bp_admin.route('/tags/edit/<int:tag_id>', methods=['GET', 'POST'])
+# @admin_required
+# def edit_tag(current_user, tag_id):
+#     tag = Tag.query.get_or_404(tag_id)
+#     form = TagForm(obj=tag)
+#     if form.validate_on_submit():
+#         tag_name = form.name.data
+#         # Check if another tag with the new name already exists (excluding the current one)
+#         existing_tag = Tag.query.filter(Tag.name == tag_name, Tag.id != tag_id).first()
+#         if existing_tag:
+#             flash('Another tag with this name already exists.', 'warning')
+#         else:
+#             tag.name = tag_name
+#             db.session.commit()
+#             flash('Tag updated successfully.', 'success')
+#             return redirect(url_for('admin.admin_tags'))
+#     return render_template('admin/admin_tag_form.html', form=form, title='Edit Tag', legend=f'Edit {tag.name}', tag=tag, current_user=current_user)
+# 
+# @bp_admin.route('/tags/delete/<int:tag_id>', methods=['POST'])
+# @admin_required
+# def delete_tag(current_user, tag_id):
+#     tag = Tag.query.get_or_404(tag_id)
+#     if tag.posts.count() > 0:
+#         flash('Cannot delete tag. It is associated with one or more posts. Please reassign posts before deleting.', 'danger')
+#         return redirect(url_for('admin.admin_tags'))
+#     db.session.delete(tag)
+#     db.session.commit()
+#     flash('Tag deleted successfully.', 'success')
+#     return redirect(url_for('admin.admin_tags'))

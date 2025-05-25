@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.database import db # Use the db instance from database.py
 from sqlalchemy import asc
+from sqlalchemy.orm import validates
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -17,10 +18,18 @@ class User(db.Model):
     def __repr__(self):
         return f'<User {self.username}>'
 
+class Category(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    posts = db.relationship('Post', backref='category', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<Category {self.name}>'
+
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(140), nullable=False)
-    content = db.Column(db.Text, nullable=False)  # Markdown content
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, index=True, default=lambda: datetime.now(timezone.utc))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     author = db.relationship('User', backref=db.backref('posts', lazy='dynamic'))
@@ -36,6 +45,7 @@ class Post(db.Model):
     tags = db.Column(db.String(255), nullable=True) 
     slug = db.Column(db.String(250), unique=True, nullable=True, index=True) 
     page_views = db.relationship('PageView', backref='post', lazy='dynamic')
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
 
     def __repr__(self):
         return f'<Post {self.title[:50]}...>'

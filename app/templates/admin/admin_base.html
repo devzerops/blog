@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title if title else 'Admin Panel' }} - {{ super() }}{% endblock %}
+
+{% block site_navbar %}
+    {# Optionally, include a different navbar for admin, or modify the existing one #}
+    {# For now, let's assume the standard navbar is okay, or it's handled by _navbar.html itself based on context #}
+    {% include "_navbar.html" %} 
+{% endblock site_navbar %}
+
+{% block main_container_class %}container-fluid{% endblock %} {# Admin panels often use full width #}
+
+{% block content %}
+<div class="row">
+    <main class="col-12 px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h1 class="h2">{% block admin_page_title %}{{ title if title else 'Admin' }}{% endblock %}</h1>
+            <div class="btn-toolbar mb-2 mb-md-0">
+                {% block admin_page_actions %}{% endblock %}
+            </div>
+        </div>
+        
+        {# Flash messages specifically for admin content area if needed, or rely on base.html's flash messages #}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block admin_content %}
+        {# Content from specific admin pages like admin_categories_list.html will go here #}
+        {% endblock admin_content %}
+    </main>
+</div>
+
+{# Feather Icons Script - for sidebar icons #}
+<script src="https://cdn.jsdelivr.net/npm/feather-icons@4.28.0/dist/feather.min.js" integrity="sha384-uO3SXW5IuS1ZpFPKugNNWqTZRRglnUJK6UAZ/gxOX80nxEkN9NcGZTftn6RzhGWE" crossorigin="anonymous"></script>
+<script>
+  feather.replace() // Initialize Feather Icons
+</script>
+{% endblock content %}
+
+{% block scripts_extra %}
+    {{ super() }} {# Include any scripts from base.html's scripts_extra block #}
+    {# Add admin-specific JS if needed #}
+    <style>
+        /* Sidebar specific styles removed */
+    </style>
+{% endblock %}
