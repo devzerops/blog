@@ -353,110 +353,111 @@
                 const form = document.querySelector('form');
                 const contentField = document.getElementById('content');
                 
-                // 폼 제출을 아예 다른 방식으로 처리
+                // 폼 제출을 위한 함수
+                function submitPostForm(buttonName, buttonValue) {
+                    try {
+                        // 에디터 내용 가져오기
+                        const editorContent = editor.getData();
+                        
+                        // 디버깅용 로그
+                        console.log('에디터 내용 길이:', editorContent.length);
+                        
+                        if (editorContent.trim().length === 0) {
+                            alert('내용을 입력해주세요.');
+                            return false;
+                        }
+                        
+                        // 폼 새로 만들기
+                        const newForm = document.createElement('form');
+                        newForm.method = 'POST';
+                        newForm.action = window.location.href;
+                        newForm.enctype = 'multipart/form-data';
+                        
+                        // CSRF 토큰 추가
+                        const csrfField = document.querySelector('input[name="csrf_token"]');
+                        if (csrfField) {
+                            const csrfInput = document.createElement('input');
+                            csrfInput.type = 'hidden';
+                            csrfInput.name = 'csrf_token';
+                            csrfInput.value = csrfField.value;
+                            newForm.appendChild(csrfInput);
+                        }
+                        
+                        // 제목 추가
+                        const titleField = document.querySelector('input[name="title"]');
+                        if (titleField) {
+                            const titleInput = document.createElement('input');
+                            titleInput.type = 'hidden';
+                            titleInput.name = 'title';
+                            titleInput.value = titleField.value;
+                            newForm.appendChild(titleInput);
+                        }
+                        
+                        // 내용 추가 (에디터에서 가져온 내용)
+                        const contentInput = document.createElement('input');
+                        contentInput.type = 'hidden';
+                        contentInput.name = 'content';
+                        contentInput.value = editorContent;
+                        newForm.appendChild(contentInput);
+                        
+                        // 버튼 정보 추가
+                        const buttonInput = document.createElement('input');
+                        buttonInput.type = 'hidden';
+                        buttonInput.name = buttonName;
+                        buttonInput.value = buttonValue || 'true';
+                        newForm.appendChild(buttonInput);
+                        
+                        // 카테고리 선택 값 추가 - 이 부분이 중요함
+                        const categoryField = document.querySelector('select[name="category"]');
+                        if (categoryField) {
+                            console.log('카테고리 값:', categoryField.value);
+                            const categoryInput = document.createElement('input');
+                            categoryInput.type = 'hidden';
+                            categoryInput.name = 'category';
+                            categoryInput.value = categoryField.value;
+                            newForm.appendChild(categoryInput);
+                        }
+                        
+                        // 그 외 필요한 필드들 추가
+                        const otherFields = form.querySelectorAll('input:not([type="submit"]), textarea');
+                        otherFields.forEach(field => {
+                            if (field.name && field.name !== 'content' && field.name !== 'title' && field.name !== 'csrf_token' && field.name !== 'category') {
+                                const input = document.createElement('input');
+                                input.type = 'hidden';
+                                input.name = field.name;
+                                input.value = field.value;
+                                newForm.appendChild(input);
+                            }
+                        });
+                        
+                        // 폼을 동적으로 생성하고 제출
+                        document.body.appendChild(newForm);
+                        console.log('새 폼 제출 준비 완료');
+                        newForm.submit();
+                        console.log('폼 제출됨');
+                        return true;
+                    } catch (error) {
+                        console.error('폼 제출 중 오류 발생:', error);
+                        alert('게시글 저장 중 오류가 발생했습니다: ' + error.message);
+                        return false;
+                    }
+                }
+                
                 // 제출 버튼에 클릭 이벤트 리스너 추가
                 document.querySelectorAll('button[type="submit"]').forEach(button => {
                     button.addEventListener('click', function(e) {
-                        // 기본 제출 동작 차단
                         e.preventDefault();
-                        
-                        const buttonName = this.name;
-                        const buttonValue = this.value;
-                        
-                        console.log('버튼 클릭됨:', buttonName, buttonValue);
-                        
-                        try {
-                            // 에디터 내용 가져오기
-                            const editorContent = editor.getData();
-                            
-                            // 디버깅용 로그
-                            console.log('에디터 내용 길이:', editorContent.length);
-                            console.log('에디터 내용 일부:', editorContent.substring(0, 100) + '...');
-                            
-                            if (editorContent.trim().length === 0) {
-                                alert('내용을 입력해주세요.');
-                                return;
-                            }
-                            
-                            // 폼 새로 만들기
-                            const newForm = document.createElement('form');
-                            newForm.method = 'POST';
-                            // 정확한 현재 URL을 action으로 사용
-                            newForm.action = window.location.href;
-                            console.log('폼 action URL:', newForm.action);
-                            newForm.enctype = 'multipart/form-data';
-                            
-                            // CSRF 토큰 추가
-                            const csrfField = document.querySelector('input[name="csrf_token"]');
-                            if (csrfField) {
-                                const csrfInput = document.createElement('input');
-                                csrfInput.type = 'hidden';
-                                csrfInput.name = 'csrf_token';
-                                csrfInput.value = csrfField.value;
-                                newForm.appendChild(csrfInput);
-                            }
-                            
-                            // 제목 추가
-                            const titleField = document.querySelector('input[name="title"]');
-                            if (titleField) {
-                                const titleInput = document.createElement('input');
-                                titleInput.type = 'hidden';
-                                titleInput.name = 'title';
-                                titleInput.value = titleField.value;
-                                newForm.appendChild(titleInput);
-                            }
-                            
-                            // 내용 추가 (에디터에서 가져온 내용)
-                            const contentInput = document.createElement('input');
-                            contentInput.type = 'hidden';
-                            contentInput.name = 'content';
-                            contentInput.value = editorContent;
-                            newForm.appendChild(contentInput);
-                            
-                            // 버튼 정보 추가
-                            const buttonInput = document.createElement('input');
-                            buttonInput.type = 'hidden';
-                            buttonInput.name = buttonName;
-                            buttonInput.value = buttonValue || 'true';
-                            newForm.appendChild(buttonInput);
-                            
-                            // 그 외 필요한 필드들 추가
-                            const otherFields = form.querySelectorAll('input:not([type="submit"]), select, textarea');
-                            otherFields.forEach(field => {
-                                if (field.name && field.name !== 'content' && field.name !== 'title' && field.name !== 'csrf_token') {
-                                    const input = document.createElement('input');
-                                    input.type = 'hidden';
-                                    input.name = field.name;
-                                    input.value = field.value;
-                                    newForm.appendChild(input);
-                                }
-                            });
-                            
-                            // 폼을 동적으로 생성하고 제출
-                            document.body.appendChild(newForm);
-                            console.log('새 폼 제출 준비 완료');
-                            newForm.submit();
-                            console.log('폼 제출됨');
-                            
-                        } catch (error) {
-                            console.error('폼 제출 중 오류 발생:', error);
-                            alert('게시글 저장 중 오류가 발생했습니다. 다시 시도해주세요.');
-                        }
+                        submitPostForm(this.name, this.value);
                     });
                 });
                 
                 // 기존 폼 제출 이벤트는 무시
                 form.addEventListener('submit', function(e) {
                     e.preventDefault();
-                    console.log('기존 폼 제출 차단됨 - 이 메시지가 보이면 정상');
+                    console.log('기존 폼 제출 차단됨');
                 });
                 
-                // 버튼 클릭 시 테스트
-                document.querySelectorAll('button[type="submit"]').forEach(button => {
-                    button.addEventListener('click', function() {
-                        console.log('제출 버튼 클릭됨:', this.name, this.value);
-                    });
-                });
+                // 자동 저장 기능 추가
                 
                 // 이제 simpleUpload 플러그인을 통해 이미지 업로드가 자동으로 처리됨
                 console.log('이미지 업로드 기능 준비 완료');

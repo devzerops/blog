@@ -132,6 +132,30 @@ def new_post(current_user):
             is_published = form.is_published.data
             if is_published:
                 published_at = datetime.utcnow()
+        
+        # 카테고리 처리 개선 - 폼에서 직접 값 확인
+        current_app.logger.info(f"원시 폼 데이터: {request.form}")
+        
+        # 카테고리 값 처리
+        category_id = None
+        # 폼에서 category 값이 있고 비어있지 않은 경우
+        if 'category' in request.form and request.form['category'].strip():
+            try:
+                category_id = int(request.form['category'])
+                current_app.logger.info(f"요청에서 추출한 category_id: {category_id}")
+                
+                # 해당 카테고리가 유효한지 확인
+                category = Category.query.get(category_id)
+                if category:
+                    current_app.logger.info(f"유효한 카테고리 찾음: {category.name} (ID: {category.id})")
+                else:
+                    current_app.logger.warning(f"ID {category_id}의 카테고리가 없음")
+                    category_id = None
+            except (ValueError, TypeError) as e:
+                current_app.logger.error(f"카테고리 ID 변환 오류: {e}")
+                category_id = None
+        
+        current_app.logger.info(f"최종 사용될 category_id: {category_id}")
                 
         post = Post(
             title=form.title.data,
@@ -142,7 +166,7 @@ def new_post(current_user):
             video_embed_url=form.video_embed_url.data, 
             is_published=is_published,
             published_at=published_at,
-            category_id=form.category.data.id if form.category.data else None
+            category_id=category_id
         )
 
         db.session.add(post)
@@ -184,7 +208,33 @@ def edit_post(current_user, post_id):
         post.content = form.content.data
         post.alt_text = form.alt_text.data # Changed from cover_image_alt_text
         post.video_embed_url = form.video_embed_url.data # Changed from video_url
-        post.category_id = form.category.data.id if form.category.data else None # Update category ID
+        
+        # 카테고리 처리 개선 - 폼에서 직접 값 확인
+        current_app.logger.info(f"[edit_post] 원시 폼 데이터: {request.form}")
+        
+        # 카테고리 값 처리
+        # 폼에서 category 값이 있고 비어있지 않은 경우
+        if 'category' in request.form and request.form['category'].strip():
+            try:
+                category_id = int(request.form['category'])
+                current_app.logger.info(f"[edit_post] 요청에서 추출한 category_id: {category_id}")
+                
+                # 해당 카테고리가 유효한지 확인
+                category = Category.query.get(category_id)
+                if category:
+                    current_app.logger.info(f"[edit_post] 유효한 카테고리 찾음: {category.name} (ID: {category.id})")
+                    post.category_id = category_id
+                else:
+                    current_app.logger.warning(f"[edit_post] ID {category_id}의 카테고리가 없음")
+                    post.category_id = None
+            except (ValueError, TypeError) as e:
+                current_app.logger.error(f"[edit_post] 카테고리 ID 변환 오류: {e}")
+                post.category_id = None
+        else:
+            # 카테고리가 선택되지 않은 경우 None으로 설정
+            post.category_id = None
+            
+        current_app.logger.info(f"[edit_post] 최종 사용될 category_id: {post.category_id}")
 
         # Check which submit button was clicked
         if 'publish' in request.form:

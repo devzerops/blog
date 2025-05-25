@@ -100,6 +100,14 @@ def post_list():
                 # Fallback or direct URL if not conventionally in static/uploads or using a different setup
                 image_url = url_for('public.uploaded_file', filename=post_item.image_filename)
 
+        # Explicitly process category info to avoid object reference issues
+        category_info = None
+        if post_item.category:
+            category_info = {
+                'id': post_item.category.id,
+                'name': post_item.category.name
+            }
+            
         processed_posts.append({
             'id': post_item.id,
             'title': post_item.title,
@@ -111,7 +119,7 @@ def post_list():
             'summary': Markup(post_item.content).striptags()[:200] + ('...' if len(Markup(post_item.content).striptags()) > 200 else ''),
             'views': post_item.views,  
             'comment_count': post_item.comments.count(),
-            'category': post_item.category  # Add the category relationship
+            'category': category_info  # Add the explicit category dictionary
         })
         
     return render_template('post_list.html', 

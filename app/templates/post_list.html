@@ -107,6 +107,10 @@
                                     <a href="{{ url_for('public.post_list', category_id=post.category.id) }}" class="badge bg-primary text-decoration-none position-relative" style="z-index: 5; position: relative;" onclick="event.stopPropagation();">
                                         <i class="bi bi-folder-fill me-1"></i> {{ post.category.name }}
                                     </a>
+                                    {% else %}
+                                    <span class="badge bg-secondary text-decoration-none position-relative" style="z-index: 5; position: relative;">
+                                        <i class="bi bi-folder-fill me-1"></i> 카테고리 없음
+                                    </span>
                                     {% endif %}
                                     
                                     {% if post.tags %}
