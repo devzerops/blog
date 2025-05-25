@@ -47,7 +47,7 @@ def login_page():
             return redirect(url_for('admin.dashboard'))
         else:
             flash('잘못된 사용자 이름 또는 비밀번호입니다.', 'danger')
-    return render_template('login.html', title='관리자 로그인', form=form)
+    return render_template('public/login.html', title='관리자 로그인', form=form)
 
 @bp_auth.route('/logout')
 def logout():

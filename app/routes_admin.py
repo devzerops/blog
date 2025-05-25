@@ -94,8 +94,7 @@ def dashboard(current_user):
     # Get all categories for filter dropdown
     categories = Category.query.order_by(Category.name).all()
     
-    return render_template(
-        'admin_dashboard.html', 
+    return render_template('admin/admin_dashboard.html', 
         title='관리자 대시보드', 
         posts=posts, 
         pagination=posts_pagination, 
@@ -135,7 +134,7 @@ def new_post(current_user):
         if not form.validate_on_submit():
             for field, errors in form.errors.items():
                 current_app.logger.error(f"Field {field} failed validation with errors: {errors}")
-            return render_template('edit_post.html', title='New Post', form=form, legend='New Post', current_user=current_user)
+            return render_template('admin/edit_post.html', title='New Post', form=form, legend='New Post', current_user=current_user)
     
     # 폼 검증 성공
     if form.validate_on_submit():
@@ -212,7 +211,7 @@ def new_post(current_user):
 
         flash('Post created successfully!', 'success')
         return redirect(url_for('admin.dashboard'))
-    return render_template('edit_post.html', title='New Post', form=form, legend='New Post', current_user=current_user)
+    return render_template('admin/edit_post.html', title='New Post', form=form, legend='New Post', current_user=current_user)
 
 @bp_admin.route('/post/edit/<int:post_id>', methods=['GET', 'POST'])
 @token_required
@@ -303,7 +302,7 @@ def edit_post(current_user, post_id):
         # Populate tags for GET request (already handled by obj=post for other fields)
         form.tags.data = post.tags
 
-    return render_template('edit_post.html', title='Edit Post', form=form, post=post, legend=f'Edit "{post.title}"', current_user=current_user)
+    return render_template('admin/edit_post.html', title='Edit Post', form=form, post=post, legend=f'Edit "{post.title}"', current_user=current_user)
 
 @bp_admin.route('/post/delete/<int:post_id>', methods=['POST'])
 @token_required
@@ -595,7 +594,7 @@ def data_restore(current_user): # Renamed function, current_user is used here
     elif request.method == 'POST':
         flash('파일 업로드 중 오류가 발생했습니다. 파일을 확인해주세요.', 'danger')
     
-    return render_template('admin_data_restore.html', title='데이터 복원', import_form=form)
+    return render_template('admin/admin_data_restore.html', title='데이터 복원', import_form=form)
 
 @bp_admin.route('/site-stats')
 @admin_required
@@ -612,7 +611,7 @@ def site_stats(current_user):
     active_users_approx = db.session.query(func.count(func.distinct(PageView.ip_address)))\
                                   .filter(PageView.timestamp >= five_minutes_ago).scalar()
 
-    return render_template('admin_site_stats.html', 
+    return render_template('admin/admin_site_stats.html', 
                            title='사이트 통계',
                            total_views_today=total_views_today,
                            total_comments_today=total_comments_today,
@@ -629,10 +628,10 @@ def profile_settings(current_user_from_token):
         if form.new_password.data:
             if not form.current_password.data:
                 flash('새 비밀번호를 설정하려면 현재 비밀번호를 입력해야 합니다.', 'danger')
-                return render_template('admin_profile_settings.html', title='관리자 프로필 설정', form=form, current_user=current_user_from_token)
+                return render_template('admin/admin_profile_settings.html', title='관리자 프로필 설정', form=form, current_user=current_user_from_token)
             if not current_user_from_token.check_password(form.current_password.data):
                 flash('현재 비밀번호가 정확하지 않습니다.', 'danger')
-                return render_template('admin_profile_settings.html', title='관리자 프로필 설정', form=form, current_user=current_user_from_token)
+                return render_template('admin/admin_profile_settings.html', title='관리자 프로필 설정', form=form, current_user=current_user_from_token)
             current_user_from_token.set_password(form.new_password.data)
             flash('비밀번호가 성공적으로 변경되었습니다.', 'info')
 
@@ -650,7 +649,7 @@ def profile_settings(current_user_from_token):
     # For GET request, populate form fields that are not directly mapped by obj if necessary
     # Example: form.username.data = current_user_from_token.username (already handled by obj)
 
-    return render_template('admin_profile_settings.html', title='관리자 프로필 설정', form=form, current_user=current_user_from_token)
+    return render_template('admin/admin_profile_settings.html', title='관리자 프로필 설정', form=form, current_user=current_user_from_token)
 
 @bp_admin.route('/settings', methods=['GET', 'POST'])
 @admin_required

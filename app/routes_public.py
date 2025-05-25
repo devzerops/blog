@@ -122,7 +122,7 @@ def post_list():
             'category': category_info  # Add the explicit category dictionary
         })
         
-    return render_template('post_list.html', 
+    return render_template('public/post_list.html', 
                            title=title, 
                            posts=processed_posts, 
                            pagination=posts_pagination, 
@@ -185,7 +185,7 @@ def post_detail(post_id):
     prev_post = Post.query.filter(Post.created_at < post.created_at, Post.is_published == True).order_by(Post.created_at.desc()).first()
     next_post = Post.query.filter(Post.created_at > post.created_at, Post.is_published == True).order_by(Post.created_at.asc()).first()
 
-    return render_template('post_detail.html', 
+    return render_template('public/post_detail.html', 
                            title=post.title, 
                            post=post, 
                            html_content=html_content, 
@@ -234,7 +234,7 @@ def about_page():
     # Get site settings for about content
     site_settings = SiteSetting.query.first()
     about_content = site_settings.about_content if site_settings and site_settings.about_content else None
-    return render_template('about.html', title='소개', current_user=current_user, about_content=about_content)
+    return render_template('public/about.html', title='소개', current_user=current_user, about_content=about_content)
 
 @bp_public.route('/uploads/<path:filename>')
 def uploaded_file(filename):
