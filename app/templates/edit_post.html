@@ -14,9 +14,13 @@
         console.log('CSRF 토큰 상태:', window.CSRF_TOKEN ? 'CSRF 토큰 있음' : 'CSRF 토큰 없음');
     </script>
     
-    <!-- CKEditor 5 - Decoupled Document 빌드 사용 (이미지 드래그 조절 지원) -->
-    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/decoupled-document/ckeditor.js"></script>
-    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/decoupled-document/translations/ko.js"></script>
+    <!-- CKEditor 5 - 코드 블록을 포함한 더 많은 기능을 가진 빌드 사용 -->
+    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/super-build/ckeditor.js"></script>
+    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/super-build/translations/ko.js"></script>
+    
+    <!-- 코드 블록 하이라이팅을 위한 highlight.js 추가 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <!-- 이미지 레이아웃 스타일 추가 -->
     <style>
         /* 이미지 스타일 - 왼쪽 정렬 */
@@ -167,6 +171,27 @@
         /* 이미지 리사이징 핸들 스타일 */
         .ck-widget.image.ck-widget_with-resizer .ck-widget__resizer {
             border: 2px solid #2196f3;
+        }
+        
+        /* 코드 블록 스타일 */
+        pre code.hljs {
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            background-color: #f8f9fa;
+        }
+        
+        /* 코드 블록 언어 스타일 */
+        .ck-content pre {
+            position: relative;
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 1em;
+            margin: 1em 0;
+            white-space: pre-wrap;
         }
     </style>
 {% endblock %}
@@ -438,46 +463,125 @@
         const contentElement = document.getElementById('content');
         const autosaveKey = contentElement.dataset.autosaveKey;
 
-        // CKEditor Decoupled Document 초기화 - 이미지 크기 조절 기능 포함
-        DecoupledEditor
+        // CKEditor Super-build 초기화 - 코드 블록과 이미지 크기 조절 기능 포함
+        CKEDITOR.ClassicEditor
             .create(document.querySelector('#editor'), {
                 placeholder: '내용을 입력하세요...',
                 language: 'ko',
-                // 커스텀 업로드 어덧터 사용
+                // 커스텀 업로드 어덧터 사용 - 처음 설정으로 돌아가기
                 extraPlugins: [MyCustomUploadAdapterPlugin],
-                // 툴바 구성 (Decoupled에서는 이 툴바가 분리된 위치에 표시됨)
+                
+                // 이미지 업로드 설정 - 두 가지 방식 모두 설정
+                simpleUpload: {
+                    uploadUrl: '{{ url_for("admin.upload_editor_image") }}',
+                    // 헤더에 인증 토큰 추가
+                    headers: {
+                        'Authorization': 'Bearer ' + window.ADMIN_TOKEN,
+                        'X-CSRF-TOKEN': window.CSRF_TOKEN
+                    }
+                },
+                // 에디터 플러그인 설정
+                plugins: [
+                    // 필수 기본 플러그인
+                    'Essentials',
+                    
+                    // 텍스트 서식
+                    'Bold',
+                    'Italic',
+                    'Underline',
+                    'Strikethrough',
+                    'Code',
+                    
+                    // 단락 관련 기능
+                    'Paragraph',
+                    'Heading',
+                    'Alignment',
+                    'BlockQuote',
+                    
+                    // 리스트 관련 기능
+                    'List',
+                    'Indent',
+                    
+                    // 기타 요소
+                    'Link',
+                    'Image',
+                    'ImageCaption',
+                    'ImageStyle',
+                    'ImageToolbar',
+                    'ImageUpload',
+                    'ImageResize',  // 이미지 리사이즈 플러그인 추가
+                    'Table',
+                    'TableToolbar',
+                    'CodeBlock',
+                    'MediaEmbed',
+                    'HorizontalLine',
+                    
+                    // 사용자 지원 기능
+                    'SourceEditing',
+                    'PasteFromOffice',
+                    'RemoveFormat',
+                    'FindAndReplace',
+                    
+                    // 해당 플러그인이 문제를 일으킬 수 있으니 제거
+                    // 'TextTransformation'
+                ],
+                
+                // 코드 블록 설정
+                codeBlock: {
+                    languages: [
+                        { language: 'plaintext', label: '일반 텍스트' },
+                        { language: 'c', label: 'C' },
+                        { language: 'cs', label: 'C#' },
+                        { language: 'cpp', label: 'C++' },
+                        { language: 'css', label: 'CSS' },
+                        { language: 'diff', label: 'Diff' },
+                        { language: 'html', label: 'HTML' },
+                        { language: 'java', label: 'Java' },
+                        { language: 'javascript', label: 'JavaScript' },
+                        { language: 'php', label: 'PHP' },
+                        { language: 'python', label: 'Python' },
+                        { language: 'ruby', label: 'Ruby' },
+                        { language: 'typescript', label: 'TypeScript' },
+                        { language: 'xml', label: 'XML' },
+                        { language: 'bash', label: 'Bash' },
+                        { language: 'json', label: 'JSON' },
+                        { language: 'sql', label: 'SQL' },
+                        { language: 'powershell', label: 'PowerShell' }
+                    ]
+                },
+                // 툴바 구성 - 플러그인과 일치하도록 항목 수정
                 toolbar: {
                     items: [
-                        'heading',
+                        'heading', 'bold', 'italic', 'underline', 'strikethrough', 'code',
                         '|',
-                        'fontSize', 'fontFamily', 'fontColor', 'fontBackgroundColor',
+                        'alignment', 'blockQuote',
                         '|',
-                        'bold', 'italic', 'underline', 'strikethrough',
+                        'bulletedList', 'numberedList',
                         '|',
-                        'alignment',
+                        'indent', 'outdent',
                         '|',
-                        'numberedList', 'bulletedList',
+                        'link', 'insertTable', 'uploadImage', 'mediaEmbed',
                         '|',
-                        'outdent', 'indent',
+                        'codeBlock', 'sourceEditing', 'horizontalLine',
                         '|',
-                        'link', 'blockQuote', 'insertTable', 'uploadImage',
+                        'findAndReplace', 'removeFormat',
                         '|',
                         'undo', 'redo'
                     ]
                 },
-                // 이미지 관련 설정
+                // 이미지 관련 설정 - Super-build에 맞게 수정
                 image: {
                     // 이미지 스타일 설정
                     styles: {
                         options: [
-                            'alignCenter',
-                            'alignLeft',
-                            'alignRight',
-                            'block',
+                            'alignCenter', 
+                            'alignLeft', 
+                            'alignRight', 
+                            'block', 
                             'side'
                         ]
                     },
-                    // 이미지 툴바 구성
+                    // 이미지 툴바 구성 - 리사이즈 기능 포함
                     toolbar: [
                         'imageStyle:alignLeft', 'imageStyle:alignCenter', 'imageStyle:alignRight',
                         '|',
@@ -485,27 +589,33 @@
                         '|',
                         'toggleImageCaption',
                         '|',
-                        'resizeImage'
+                        'resizeImage:25', 'resizeImage:50', 'resizeImage:75', 'resizeImage:original'
                     ],
-                    // Decoupled Document 빌드에서는 이미지 리사이징이 기본 지원됨
-                    resizeUnit: '%',
+                    
+                    // 이미지 리사이즈 설정
                     resizeOptions: [
                         {
                             name: 'resizeImage:original',
                             value: null,
-                            label: '원본'
+                            icon: 'original'
+                        },
+                        {
+                            name: 'resizeImage:25',
+                            value: '25',
+                            icon: 'small'
                         },
                         {
                             name: 'resizeImage:50',
                             value: '50',
-                            label: '50%'
+                            icon: 'medium'
                         },
                         {
                             name: 'resizeImage:75',
                             value: '75',
-                            label: '75%'
+                            icon: 'large'
                         }
-                    ]
+                    ],
+                    resizeUnit: '%'
                 },
                 // 테이블 구성
                 table: {
@@ -522,14 +632,23 @@
                 // 에디터 인스턴스 저장
                 window.editor = editor;
                 
-                // Decoupled Document에서는 toolbar를 수동으로 DOM에 부착해야 함
-                const toolbarContainer = document.createElement('div');
-                toolbarContainer.classList.add('document-editor__toolbar');
-                document.querySelector('#editor').parentNode.insertBefore(toolbarContainer, document.querySelector('#editor'));
+                // highlight.js로 코드 구문 강조 적용 - 이미 강조된 요소는 건너뛬기
+                function applyHighlighting() {
+                    document.querySelectorAll('pre code').forEach((block) => {
+                        // 이미 강조된 요소인지 확인
+                        if (!block.dataset.highlighted) {
+                            hljs.highlightElement(block);
+                        }
+                    });
+                }
                 
-                // UI와 편집 영역 연결
-                editor.ui.view.toolbar.element.classList.add('ck-editor__top');
-                toolbarContainer.appendChild(editor.ui.view.toolbar.element);
+                // 코드 블록이 삽입되면 구문 강조 적용
+                editor.model.document.on('change:data', () => {
+                    setTimeout(applyHighlighting, 100);
+                });
+                
+                // 초기 구문 강조 적용
+                setTimeout(applyHighlighting, 100);
                 
                 console.log('CKEditor 초기화 완료');
                 
