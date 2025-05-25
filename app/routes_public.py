@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, current_app, abort, url_for, session, send_from_directory, redirect, flash
 from markupsafe import Markup # Import Markup from markupsafe
-from app.models import Post, db, User, Comment, SiteSetting # Removed Tag, Added User, Comment, SiteSetting
+from app.models import Post, db, User, Comment, SiteSetting, Category # Removed Tag, Added User, Comment, SiteSetting, Category
 from app.forms import CommentForm # Import CommentForm
 from app.database import db # Import db
 from app.auth import get_current_user_if_logged_in # Add this import
@@ -26,7 +26,8 @@ def post_list():
     page = request.args.get('page', 1, type=int)
     search_query = request.args.get('q', None)
     tag_name = request.args.get('tag', None)
-    category_name = request.args.get('category', None) # Added category_name
+    category_id_filter = request.args.get('category_id', None, type=int) # New: using ID
+    selected_category_object = None
     
     query_obj = Post.query.filter(Post.is_published == True) # Show only published posts
 
@@ -36,13 +37,16 @@ def post_list():
         query_obj = query_obj.filter(Post.tags.ilike(f"%{tag_name}%"))
         title = f'"{tag_name}" 태그 글 목록'
     
-    if category_name:
-        # Placeholder for category filtering logic on query_obj
-        # For now, just updating title. Actual filtering will be added when categories are implemented.
-        # query_obj = query_obj.filter(Post.category == category_name) # Example if category was a direct field
-        title = f'"{category_name}" 카테고리 글 목록'
-        if tag_name: # If both tag and category are present
-             title = f'"{tag_name}" 태그 및 "{category_name}" 카테고리 글 목록'
+    if category_id_filter is not None:
+        selected_category_object = Category.query.get(category_id_filter)
+        if selected_category_object:
+            query_obj = query_obj.filter(Post.category_id == category_id_filter)
+            category_title_part = f'"{selected_category_object.name}" 카테고리 글 목록'
+            if tag_name:
+                title = f'"{tag_name}" 태그 및 {category_title_part}'
+            else:
+                title = category_title_part
+        # else: category_id is invalid, silently ignore or flash a message
 
     if search_query:
         search_term = f"%{search_query}%"
@@ -53,7 +57,7 @@ def post_list():
             )
         )
         # Adjust title if search is also active
-        if tag_name or category_name:
+        if tag_name or category_id_filter:
             title += f' 중 "{search_query}" 검색 결과'
         else:
             title = f'"{search_query}" 검색 결과'
@@ -66,6 +70,9 @@ def post_list():
             tags_list = [t.strip() for t in post_item_for_tags.tags.split(',') if t.strip()]
             unique_tags.update(tags_list)
     sorted_unique_tags = sorted(list(unique_tags))
+
+    # Fetch all categories for the sidebar
+    all_categories = Category.query.order_by(Category.name).all()
 
     # Get posts_per_page from SiteSetting or config
     site_settings = SiteSetting.query.first()
@@ -111,8 +118,9 @@ def post_list():
                            pagination=posts_pagination, 
                            search_query=search_query, 
                            tag_filter=tag_name, 
-                           category_filter=category_name,  # Pass category_filter
-                           all_tags=sorted_unique_tags) # Pass all_tags
+                           selected_category_id=category_id_filter, # Pass selected category ID
+                           all_tags=sorted_unique_tags,
+                           all_categories=all_categories) # Pass all_categories
 
 @bp_public.route('/posts/<int:post_id>')
 def post_detail(post_id):

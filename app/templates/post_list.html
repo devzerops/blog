@@ -31,7 +31,7 @@
                 </a>
                 <div class="collapse show" id="collapseTagsDesktop">
                     <div class="list-group list-group-flush ps-2">
-                        <a href="{{ url_for('public.post_list') }}" class="list-group-item list-group-item-action py-1 {% if not tag_filter and not category_filter %}active{% endif %}">
+                        <a href="{{ url_for('public.post_list') }}" class="list-group-item list-group-item-action py-1 {% if not tag_filter and not selected_category_id %}active{% endif %}">
                             <i class="bi bi-tags me-1"></i> 모든 태그
                         </a>
                         {% if all_tags %}
@@ -54,13 +54,14 @@
                 </a>
                 <div class="collapse show" id="collapseCategoriesDesktop">
                     <div class="list-group list-group-flush ps-2">
-                        <a href="{{ url_for('public.post_list') }}" class="list-group-item list-group-item-action py-1 {% if not category_filter and not tag_filter %}active{% endif %}">
-                            <i class="bi bi-bookmarks me-1"></i> 모든 카테고리
+                        <a href="{{ url_for('public.post_list') }}" class="list-group-item list-group-item-action py-1 {% if not selected_category_id and not tag_filter %}active{% endif %}">
+                            <i class="bi bi-folder me-1"></i> 모든 카테고리
                         </a>
-                        {# Placeholder for categories - replace with actual categories later #}
-                        <a href="#" class="list-group-item list-group-item-action py-1 disabled"><i class="bi bi-bookmark-fill me-1"></i> 카테고리 1 (예시)</a>
-                        <a href="#" class="list-group-item list-group-item-action py-1 disabled"><i class="bi bi-bookmark-fill me-1"></i> 카테고리 2 (예시)</a>
-                        <span class="list-group-item py-1 text-muted"><i class="bi bi-bookmark me-1"></i> 카테고리 기능 준비중</span>
+                        {% for category_item in all_categories %}
+                            <a href="{{ url_for('public.post_list', category_id=category_item.id) }}" class="list-group-item list-group-item-action py-1 {% if selected_category_id == category_item.id %}active{% endif %}">
+                                <i class="bi bi-folder-fill me-1"></i> {{ category_item.name }}
+                            </a>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
@@ -193,7 +194,7 @@
             </a>
             <div class="collapse show" id="collapseTagsOffcanvas">
                 <div class="list-group list-group-flush ps-2">
-                    <a href="{{ url_for('public.post_list') }}" class="list-group-item list-group-item-action py-1 {% if not tag_filter and not category_filter %}active{% endif %}">
+                    <a href="{{ url_for('public.post_list') }}" class="list-group-item list-group-item-action py-1 {% if not tag_filter and not selected_category_id %}active{% endif %}">
                         <i class="bi bi-tags me-1"></i> 모든 태그
                     </a>
                     {% if all_tags %}
@@ -216,13 +217,14 @@
             </a>
             <div class="collapse show" id="collapseCategoriesOffcanvas">
                 <div class="list-group list-group-flush ps-2">
-                    <a href="{{ url_for('public.post_list') }}" class="list-group-item list-group-item-action py-1 {% if not category_filter and not tag_filter %}active{% endif %}">
-                        <i class="bi bi-bookmarks me-1"></i> 모든 카테고리
+                    <a href="{{ url_for('public.post_list') }}" class="list-group-item list-group-item-action py-1 {% if not selected_category_id and not tag_filter %}active{% endif %}">
+                        <i class="bi bi-folder me-1"></i> 모든 카테고리
                     </a>
-                    {# Placeholder for categories - replace with actual categories later #}
-                    <a href="#" class="list-group-item list-group-item-action py-1 disabled"><i class="bi bi-bookmark-fill me-1"></i> 카테고리 1 (예시)</a>
-                    <a href="#" class="list-group-item list-group-item-action py-1 disabled"><i class="bi bi-bookmark-fill me-1"></i> 카테고리 2 (예시)</a>
-                    <span class="list-group-item py-1 text-muted"><i class="bi bi-bookmark me-1"></i> 카테고리 기능 준비중</span>
+                    {% for category_item in all_categories %}
+                        <a href="{{ url_for('public.post_list', category_id=category_item.id) }}" class="list-group-item list-group-item-action py-1 {% if selected_category_id == category_item.id %}active{% endif %}">
+                            <i class="bi bi-folder-fill me-1"></i> {{ category_item.name }}
+                        </a>
+                    {% endfor %}
                 </div>
             </div>
         </div>
