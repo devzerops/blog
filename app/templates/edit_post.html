@@ -14,9 +14,9 @@
         console.log('CSRF 토큰 상태:', window.CSRF_TOKEN ? 'CSRF 토큰 있음' : 'CSRF 토큰 없음');
     </script>
     
-    <!-- CKEditor 5 - Classic 빌드 사용 (이미지 드래그 조절 지원) -->
-    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/classic/ckeditor.js"></script>
-    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/classic/translations/ko.js"></script>
+    <!-- CKEditor 5 - Decoupled Document 빌드 사용 (이미지 드래그 조절 지원) -->
+    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/decoupled-document/ckeditor.js"></script>
+    <script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/decoupled-document/translations/ko.js"></script>
     <!-- 이미지 레이아웃 스타일 추가 -->
     <style>
         /* 이미지 스타일 - 왼쪽 정렬 */
@@ -137,16 +137,36 @@
         }
     </script>
     <style>
-        /* CKEditor 스타일 */
-        .ck-editor__editable {
+        /* Decoupled Document 에디터 스타일 */
+        .document-editor__toolbar {
+            background: #f6f6f6;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            padding: 8px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        #editor {
+            border: 1px solid #ddd;
+            border-radius: 0 0 4px 4px;
             min-height: 750px;
             max-height: 750px;
             overflow-y: auto;
+            padding: 1.5em 2em;
         }
         
-        /* 이미지 업로드 영역 스타일 */
-        .ck-file-dialog-button {
-            display: block;
+        /* 이미지 크기 조절 핸들 스타일 */
+        .ck-widget.image .ck-widget__type-around .ck-widget__type-around__button {
+            background: #fff;
+            border-radius: 50%;
+        }
+        
+        /* 이미지 리사이징 핸들 스타일 */
+        .ck-widget.image.ck-widget_with-resizer .ck-widget__resizer {
+            border: 2px solid #2196f3;
         }
     </style>
 {% endblock %}
@@ -418,64 +438,98 @@
         const contentElement = document.getElementById('content');
         const autosaveKey = contentElement.dataset.autosaveKey;
 
-        // CKEditor Classic 초기화 - 이미지 크기 조절 기능 포함
-        ClassicEditor
+        // CKEditor Decoupled Document 초기화 - 이미지 크기 조절 기능 포함
+        DecoupledEditor
             .create(document.querySelector('#editor'), {
                 placeholder: '내용을 입력하세요...',
                 language: 'ko',
-                // 커스텀 업로드 어댑터 사용
+                // 커스텀 업로드 어덧터 사용
                 extraPlugins: [MyCustomUploadAdapterPlugin],
-                // 툴바 구성
+                // 툴바 구성 (Decoupled에서는 이 툴바가 분리된 위치에 표시됨)
                 toolbar: {
                     items: [
                         'heading',
                         '|',
-                        'bold',
-                        'italic',
-                        'link',
-                        'bulletedList',
-                        'numberedList',
+                        'fontSize', 'fontFamily', 'fontColor', 'fontBackgroundColor',
                         '|',
-                        'insertTable',
-                        'uploadImage',
-                        'blockQuote',
+                        'bold', 'italic', 'underline', 'strikethrough',
                         '|',
-                        'undo',
-                        'redo'
+                        'alignment',
+                        '|',
+                        'numberedList', 'bulletedList',
+                        '|',
+                        'outdent', 'indent',
+                        '|',
+                        'link', 'blockQuote', 'insertTable', 'uploadImage',
+                        '|',
+                        'undo', 'redo'
                     ]
                 },
                 // 이미지 관련 설정
                 image: {
                     // 이미지 스타일 설정
-                    styles: [
-                        'alignLeft', 'alignCenter', 'alignRight'
-                    ],
+                    styles: {
+                        options: [
+                            'alignCenter',
+                            'alignLeft',
+                            'alignRight',
+                            'block',
+                            'side'
+                        ]
+                    },
                     // 이미지 툴바 구성
                     toolbar: [
                         'imageStyle:alignLeft', 'imageStyle:alignCenter', 'imageStyle:alignRight',
                         '|',
                         'imageTextAlternative',
                         '|',
-                        'toggleImageCaption'
+                        'toggleImageCaption',
+                        '|',
+                        'resizeImage'
                     ],
-                    // 이미지 드래그로 크기 조절 활성화
-                    resizeOptions: {
-                        buttons: true,  // 크기 조절 버튼 표시
-                        ui: true        // 드래그 허용
-                    }
+                    // Decoupled Document 빌드에서는 이미지 리사이징이 기본 지원됨
+                    resizeUnit: '%',
+                    resizeOptions: [
+                        {
+                            name: 'resizeImage:original',
+                            value: null,
+                            label: '원본'
+                        },
+                        {
+                            name: 'resizeImage:50',
+                            value: '50',
+                            label: '50%'
+                        },
+                        {
+                            name: 'resizeImage:75',
+                            value: '75',
+                            label: '75%'
+                        }
+                    ]
                 },
                 // 테이블 구성
                 table: {
                     contentToolbar: [
                         'tableColumn',
                         'tableRow',
-                        'mergeTableCells'
+                        'mergeTableCells',
+                        'tableCellProperties',
+                        'tableProperties'
                     ]
                 }
             })
             .then(editor => {
                 // 에디터 인스턴스 저장
                 window.editor = editor;
+                
+                // Decoupled Document에서는 toolbar를 수동으로 DOM에 부착해야 함
+                const toolbarContainer = document.createElement('div');
+                toolbarContainer.classList.add('document-editor__toolbar');
+                document.querySelector('#editor').parentNode.insertBefore(toolbarContainer, document.querySelector('#editor'));
+                
+                // UI와 편집 영역 연결
+                editor.ui.view.toolbar.element.classList.add('ck-editor__top');
+                toolbarContainer.appendChild(editor.ui.view.toolbar.element);
                 
                 console.log('CKEditor 초기화 완료');
                 
