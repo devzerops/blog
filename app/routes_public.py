@@ -29,7 +29,8 @@ def post_list():
     category_id_filter = request.args.get('category_id', None, type=int) # New: using ID
     selected_category_object = None
     
-    query_obj = Post.query.filter(Post.is_published == True) # Show only published posts
+    # Eager load category relationship
+    query_obj = Post.query.options(db.joinedload(Post.category)).filter(Post.is_published == True) # Show only published posts
 
     title = '블로그 게시글' # Default title
 
@@ -109,7 +110,8 @@ def post_list():
             'alt_text': post_item.alt_text if post_item.alt_text else post_item.title, 
             'summary': Markup(post_item.content).striptags()[:200] + ('...' if len(Markup(post_item.content).striptags()) > 200 else ''),
             'views': post_item.views,  
-            'comment_count': post_item.comments.count()  
+            'comment_count': post_item.comments.count(),
+            'category': post_item.category  # Add the category relationship
         })
         
     return render_template('post_list.html', 

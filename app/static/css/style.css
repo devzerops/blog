@@ -14,6 +14,12 @@ body {
     font-size: 1.5rem;
 }
 
+/* Ensure dropdown menus always appear on top */
+.dropdown-menu {
+    z-index: 1030; /* Higher than most elements */
+    position: absolute;
+}
+
 .navbar-dark .navbar-nav .nav-link {
     color: rgba(255,255,255,.75);
 }
