@@ -179,6 +179,11 @@ def post_detail(post_id):
     
     # 2. 모든 카테고리 가져오기
     all_categories = Category.query.order_by(Category.name).all()
+    
+    # 이전글과 다음글 가져오기
+    # 작성일 기준으로 정렬하여 이전글과 다음글 찾기
+    prev_post = Post.query.filter(Post.created_at < post.created_at, Post.is_published == True).order_by(Post.created_at.desc()).first()
+    next_post = Post.query.filter(Post.created_at > post.created_at, Post.is_published == True).order_by(Post.created_at.asc()).first()
 
     return render_template('post_detail.html', 
                            title=post.title, 
@@ -189,6 +194,9 @@ def post_detail(post_id):
                            comment_form=form, # Pass comment form
                            comments=comments, # Pass comments list
                            current_user=current_user,
+                           # 이전글과 다음글 변수
+                           prev_post=prev_post,
+                           next_post=next_post,
                            # 왼쪽 내비게이션 바를 위한 변수들
                            all_tags=sorted_unique_tags,
                            all_categories=all_categories,
