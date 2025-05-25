@@ -51,6 +51,26 @@
     </button>
 </div>
 
+<!-- 모바일용 목차 버튼 (상단에 추가) -->
+<div class="d-md-none mb-3 text-end">
+    <button class="btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" style="background-color: #2a2a2a; color: #ffc107; border: 1px solid #ffc107;">
+        <i class="bi bi-list-ul me-2"></i> 목차 보기
+    </button>
+</div>
+
+<!-- 모바일용 목차 오프캩4버스 -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+    <div class="offcanvas-header" style="background-color: #2a2a2a; color: #ffc107;">
+        <h5 class="offcanvas-title" id="tocOffcanvasLabel"><i class="bi bi-list-ul me-2"></i>목차</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close" style="filter: invert(1) brightness(200%);"></button>
+    </div>
+    <div class="offcanvas-body" style="background-color: #2a2a2a; color: #e0e0e0;">
+        <div id="mobile-toc-content">
+            <!-- 모바일 목차 내용이 JavaScript로 자동 미러링됩니다 -->
+        </div>
+    </div>
+</div>
+
 <div class="row mt-4">    
 
 <!-- Off-canvas Sidebar for Filters -->
@@ -321,10 +341,11 @@
         document.addEventListener('DOMContentLoaded', function() {
             // 목차를 생성할 컨테이너 요소
             const tocContainer = document.getElementById('toc-content');
+            const mobileTocContainer = document.getElementById('mobile-toc-content');
             // 포스트 컨텐츠 영역
             const postContent = document.querySelector('.post-content');
             
-            if (tocContainer && postContent) {
+            if ((tocContainer || mobileTocContainer) && postContent) {
                 // 모든 제목 요소(h1, h2, h3, h4)를 찾음
                 const headings = postContent.querySelectorAll('h1, h2, h3, h4');
                 
@@ -367,17 +388,76 @@
                             // 기본 동작 방지 (페이지 새로고침 방지)
                             e.preventDefault();
                             
-                            // 해당 섹션으로 부드럽게 스크롤
-                            document.getElementById(heading.id).scrollIntoView({ 
-                                behavior: 'smooth' 
+                            // 현재 스크롤 위치 저장
+                            let targetElement = document.getElementById(heading.id);
+                            if (!targetElement) return;
+                            
+                            // URL을 변경하지 않고 스크롤만 수행
+                            window.scrollTo({
+                                top: targetElement.offsetTop - 70, // 헤더 높이 고려하여 오프셋 조정
+                                behavior: 'smooth'
                             });
                             
-                            // URL 해시 업데이트 (브라우저 히스토리에 기록)
-                            history.pushState(null, null, `#${heading.id}`);
+                            // 스크롤이 완료된 후 URL 해시 업데이트
+                            setTimeout(function() {
+                                // 스크롤 완료 후 URL 변경 (브라우저 기본 동작 방지)
+                                history.replaceState(null, null, `#${heading.id}`);
+                            }, 800); // 스크롤이 완료되기를 기다림
                         });
                         
                         tocItem.appendChild(tocLink);
-                        tocContainer.appendChild(tocItem);
+                        
+                        // 데스크톱 목차에 추가
+                        if (tocContainer) {
+                            tocContainer.appendChild(tocItem.cloneNode(true));
+                        }
+                        
+                        // 모바일 목차에도 추가
+                        if (mobileTocContainer) {
+                            // 모바일용 목차 항목 생성
+                            const mobileTocItem = document.createElement('div');
+                            mobileTocItem.className = `mb-3 overflow-x-hidden ${indentClass}`;
+                            
+                            const mobileTocLink = document.createElement('a');
+                            mobileTocLink.href = `#${heading.id}`;
+                            mobileTocLink.style.color = '#b7b7b7';
+                            mobileTocLink.style.textDecoration = 'none';
+                            mobileTocLink.onmouseover = function() { this.style.color = '#ffc107'; };
+                            mobileTocLink.onmouseout = function() { this.style.color = '#b7b7b7'; };
+                            mobileTocLink.textContent = heading.textContent;
+                            
+                            // 동일한 클릭 이벤트 추가 (개선된 스크롤 처리)
+                            mobileTocLink.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                
+                                // 해당 섹션 요소 찾기
+                                let targetElement = document.getElementById(heading.id);
+                                if (!targetElement) return;
+                                
+                                // 모바일 목차 닫기
+                                const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('tocOffcanvas'));
+                                if (offcanvas) {
+                                    offcanvas.hide();
+                                }
+                                
+                                // 일정 시간 후 스크롤 (목차가 닫히고 난 후)
+                                setTimeout(function() {
+                                    // URL을 변경하지 않고 스크롤만 수행
+                                    window.scrollTo({
+                                        top: targetElement.offsetTop - 70, // 헤더 높이 고려하여 오프셋 조정
+                                        behavior: 'smooth'
+                                    });
+                                    
+                                    // 스크롤이 완료된 후 URL 해시 업데이트
+                                    setTimeout(function() {
+                                        history.replaceState(null, null, `#${heading.id}`);
+                                    }, 800);
+                                }, 300); // 목차가 닫히기를 기다림
+                            });
+                            
+                            mobileTocItem.appendChild(mobileTocLink);
+                            mobileTocContainer.appendChild(mobileTocItem);
+                        }
                     });
                     
                     // 스크롤 이벤트 리스너 추가 - 현재 보고 있는 섹션 하이라이트
