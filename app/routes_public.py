@@ -156,6 +156,21 @@ def post_detail(post_id):
     # Comment form and comments list
     form = CommentForm() # For submitting new top-level comments
     comments = Comment.query.filter_by(post_id=post.id, parent_id=None).order_by(Comment.created_at.asc()).all()
+    
+    # 태그 및 카테고리 데이터 가져오기 (왼쪽 내비게이션 바용)
+    # 1. 모든 태그 가져오기
+    all_posts = Post.query.filter_by(is_published=True).all()
+    all_tags_flat = []
+    for p in all_posts:
+        if p.tags:  # tags가 None이 아닌 경우에만 처리
+            tags_list = [tag.strip() for tag in p.tags.split(',') if tag.strip()]
+            all_tags_flat.extend(tags_list)
+    
+    # 중복 제거하고 정렬
+    sorted_unique_tags = sorted(set(all_tags_flat))
+    
+    # 2. 모든 카테고리 가져오기
+    all_categories = Category.query.order_by(Category.name).all()
 
     return render_template('post_detail.html', 
                            title=post.title, 
@@ -165,7 +180,12 @@ def post_detail(post_id):
                            meta_description=meta_description, # Pass meta_description
                            comment_form=form, # Pass comment form
                            comments=comments, # Pass comments list
-                           current_user=current_user)
+                           current_user=current_user,
+                           # 왼쪽 내비게이션 바를 위한 변수들
+                           all_tags=sorted_unique_tags,
+                           all_categories=all_categories,
+                           tag_filter=None,
+                           selected_category_id=None)
 
 @bp_public.route('/post/<int:post_id>/comment', methods=['POST'])
 def add_comment(post_id):
