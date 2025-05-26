@@ -1,25 +1,14 @@
+"""
+데이터베이스 직접 생성 스크립트
+"""
 from app import create_app, db
 from app.models import User, Post, Category, Comment, SiteSetting, PageView
 
 app = create_app()
 
-@app.shell_context_processor
-def make_shell_context():
-    return {
-        'db': db, 
-        'User': User, 
-        'Post': Post, 
-        'Category': Category, 
-        'Comment': Comment, 
-        'SiteSetting': SiteSetting, 
-        'PageView': PageView
-    }
-
-# 명령줄에서 초기 설정을 위한 함수 추가
-@app.cli.command('init-db')
-def init_db_command():
-    """데이터베이스 초기화 및 기본 데이터 생성"""
-    print("데이터베이스 테이블 생성 중...")
+# 애플리케이션 컨텍스트 내에서 실행
+with app.app_context():
+    print("데이터베이스 생성 중...")
     db.create_all()
     
     # 초기 관리자 계정 생성 확인
@@ -38,7 +27,7 @@ def init_db_command():
                 site_domain='example.com',
                 posts_per_page=10,
                 admin_email='admin@example.com',
-                footer_copyright_text='© 2025 My Flask Blog'
+                footer_text='© 2025 My Flask Blog'
             )
             db.session.add(default_settings)
         
@@ -48,6 +37,3 @@ def init_db_command():
         print("관리자 계정이 이미 존재합니다.")
     
     print("데이터베이스 설정 완료!")
-
-if __name__ == '__main__':
-    app.run(debug=True)
