@@ -10,3 +10,4 @@ email_validator
 Pillow
 python-slugify
 bootstrap-flask>=2.0.0
+psycopg2-binary>=2.9.6
