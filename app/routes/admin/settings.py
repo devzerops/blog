@@ -27,6 +27,32 @@ def site_settings(current_user):
     form = SiteSettingsForm(obj=site_settings)
     
     if form.validate_on_submit():
+        # Handle file upload
+        if 'favicon_file' in request.files:
+            favicon_file = request.files['favicon_file']
+            if favicon_file.filename != '':
+                # Ensure the upload directory exists
+                import os
+                from werkzeug.utils import secure_filename
+                
+                upload_dir = os.path.join(current_app.static_folder, 'img', 'favicon')
+                os.makedirs(upload_dir, exist_ok=True)
+                
+                # Delete old favicon if exists
+                if site_settings.favicon_filename:
+                    old_file = os.path.join(upload_dir, site_settings.favicon_filename)
+                    if os.path.exists(old_file):
+                        try:
+                            os.remove(old_file)
+                        except OSError:
+                            pass
+                
+                # Save new favicon
+                filename = secure_filename(favicon_file.filename)
+                filepath = os.path.join(upload_dir, filename)
+                favicon_file.save(filepath)
+                site_settings.favicon_filename = filename
+        
         form.populate_obj(site_settings)
         db.session.commit()
         flash('사이트 설정이 업데이트되었습니다.', 'success')
