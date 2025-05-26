@@ -30,22 +30,37 @@ def admin_add_category(current_user):
     """Add a new category"""
     form = CategoryForm()
     if form.validate_on_submit():
-        category_name = form.name.data
-        slug = form.slug.data
-        description = form.description.data
-        
-        # Check if a category with this name already exists
-        existing_category = Category.query.filter_by(name=category_name).first()
-        if existing_category:
-            flash('이미 존재하는 카테고리 이름입니다.', 'danger')
-            return render_template('admin/admin_category_form.html', form=form, title='New Category', legend='새 카테고리 생성', current_user=current_user)
-        
-        # Create the category
-        category = Category(name=category_name, slug=slug, description=description)
-        db.session.add(category)
-        db.session.commit()
-        flash('카테고리가 성공적으로 생성되었습니다.', 'success')
-        return redirect(url_for('admin.admin_categories'))
+        try:
+            category_name = form.name.data
+            
+            # Check if a category with this name already exists
+            existing_category = Category.query.filter_by(name=category_name).first()
+            
+            if existing_category:
+                flash('이미 존재하는 카테고리 이름입니다.', 'danger')
+                return render_template('admin/admin_category_form.html', 
+                                    form=form, 
+                                    title='새 카테고리', 
+                                    legend='새 카테고리 생성', 
+                                    current_user=current_user)
+            
+            # Create the category
+            category = Category(name=category_name)
+            db.session.add(category)
+            db.session.commit()
+            flash('카테고리가 성공적으로 생성되었습니다.', 'success')
+            return redirect(url_for('admin.admin_categories'))
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating category: {str(e)}")
+            flash(f'카테고리 생성 중 오류가 발생했습니다: {str(e)}', 'danger')
+    else:
+        # 폼 검증 실패 시 오류 메시지 출력
+        print(f"Form validation failed. Errors: {form.errors}")
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f"{getattr(form, field).label.text}: {error}", 'danger')
     
     return render_template('admin/admin_category_form.html', form=form, title='New Category', legend='새 카테고리 생성', current_user=current_user)
 
@@ -58,17 +73,21 @@ def admin_edit_category(current_user, category_id):
     form = CategoryForm(obj=category)
     
     if form.validate_on_submit():
+        new_name = form.name.data
+        
         # Check if name changed and if the new name already exists
-        if category.name != form.name.data:
-            existing_category = Category.query.filter_by(name=form.name.data).first()
+        if category.name != new_name:
+            existing_category = Category.query.filter(
+                (Category.id != category_id) & 
+                (Category.name == new_name)
+            ).first()
             if existing_category:
                 flash('이미 존재하는 카테고리 이름입니다.', 'danger')
-                return render_template('admin/admin_category_form.html', form=form, title='Edit Category', legend=f'Edit {category.name}', category=category, current_user=current_user)
+                return render_template('admin/admin_category_form.html', form=form, title='카테고리 수정', 
+                                    legend=f'카테고리 수정: {category.name}', category=category, current_user=current_user)
         
         # Update category
-        category.name = form.name.data
-        category.slug = form.slug.data
-        category.description = form.description.data
+        category.name = new_name
         db.session.commit()
         flash('카테고리가 성공적으로 업데이트되었습니다.', 'success')
         return redirect(url_for('admin.admin_categories'))

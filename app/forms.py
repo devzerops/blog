@@ -36,8 +36,8 @@ class RegistrationForm(FlaskForm):
     #         raise ValidationError('Please use a different email address.')
 
 class CategoryForm(FlaskForm):
-    name = StringField('Category Name', validators=[DataRequired(), Length(min=1, max=100)])
-    submit = SubmitField('Save Category')
+    name = StringField('카테고리 이름', validators=[DataRequired(), Length(min=1, max=100)])
+    submit = SubmitField('카테고리 저장')
 
 class PostForm(FlaskForm):
     title = StringField('제목', validators=[DataRequired(), Length(min=1, max=200)])

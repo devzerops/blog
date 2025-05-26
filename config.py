@@ -24,7 +24,7 @@ def get_database_uri():
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'you-will-never-guess'
     SQLALCHEMY_DATABASE_URI = get_database_uri()
-    SQLALCHEMY_TRACK_MODIFICATIONS = Falsew
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
     ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD') or 'defaultadminpassword'
     UPLOAD_FOLDER = os.path.join(basedir, 'app', 'static', 'uploads')
     TEMP_FOLDER = os.path.join(basedir, 'app', 'static', 'temp')
