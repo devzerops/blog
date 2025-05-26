@@ -87,6 +87,13 @@ def upload_editor_image(current_user):
     return jsonify({'error': 'File type not allowed'}), 400
 
 
+@bp_admin.route('/uploads/<path:filename>')
+@token_required
+def uploaded_file(current_user, filename):
+    """Serve uploaded files"""
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
+
+
 @bp_admin.route('/image-management', methods=['GET'])
 @admin_required
 def image_management(current_user):

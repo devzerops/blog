@@ -14,6 +14,7 @@ from app.routes.admin import bp_admin
 
 
 @bp_admin.route('/')
+@bp_admin.route('/dashboard')
 @admin_required
 def dashboard(current_user):
     """Main admin dashboard route"""

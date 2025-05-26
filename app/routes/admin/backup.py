@@ -22,7 +22,7 @@ from app.auth import admin_required
 from app.routes.admin import bp_admin
 
 
-@bp_admin.route('/export', methods=['GET'])
+@bp_admin.route('/export/all_content', methods=['GET'])
 @admin_required
 def export_all_content(current_user):
     """Export all site content as ZIP including JSON data and images"""
@@ -142,7 +142,7 @@ def export_all_content(current_user):
             shutil.rmtree(temp_dir)
 
 
-@bp_admin.route('/data-restore', methods=['GET', 'POST'])
+@bp_admin.route('/data/restore', methods=['GET', 'POST'])
 @admin_required
 def data_restore(current_user):
     """Restore site data from backup"""

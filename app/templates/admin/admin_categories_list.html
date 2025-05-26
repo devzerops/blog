@@ -4,7 +4,7 @@
 {% block admin_content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-end mb-3">
-        <a href="{{ url_for('admin.admin_add_category') }}" class="btn btn-primary">Add New Category</a>
+        <a href="{{ url_for('admin.admin_add_category') }}" class="btn btn-primary">새 카테고리 추가</a>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -42,7 +42,7 @@
         </tbody>
     </table>
     {% else %}
-    <p>No categories found. <a href="{{ url_for('admin.admin_new_category') }}">Add one now!</a></p>
+    <p>등록된 카테고리가 없습니다. <a href="{{ url_for('admin.admin_add_category') }}">지금 추가하세요!</a></p>
     {% endif %}
 </div>
 {% endblock %}

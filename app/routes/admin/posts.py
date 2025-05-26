@@ -15,6 +15,24 @@ from app.auth import admin_required, token_required
 from app.routes.admin import bp_admin
 
 
+@bp_admin.route('/posts', methods=['GET'])
+@admin_required
+def admin_posts(current_user):
+    """List all blog posts"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    posts_pagination = Post.query.order_by(Post.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    posts = posts_pagination.items
+    
+    return render_template('admin/admin_posts_list.html', 
+                          title='게시물 관리', 
+                          posts=posts, 
+                          pagination=posts_pagination, 
+                          current_user=current_user)
+
+
 @bp_admin.route('/post/new', methods=['GET', 'POST'])
 @admin_required
 def new_post(current_user):
