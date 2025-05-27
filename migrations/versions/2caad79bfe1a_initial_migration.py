@@ -1,8 +1,8 @@
 """Initial migration
 
-Revision ID: 789b41645466
+Revision ID: 2caad79bfe1a
 Revises: 
-Create Date: 2025-05-27 00:50:50.591711
+Create Date: 2025-05-27 14:52:12.359464
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '789b41645466'
+revision = '2caad79bfe1a'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -55,6 +55,7 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('image_filename', sa.String(length=255), nullable=True),
+    sa.Column('thumbnail_filename', sa.String(length=255), nullable=True),
     sa.Column('alt_text', sa.String(length=200), nullable=True),
     sa.Column('video_embed_url', sa.String(length=300), nullable=True),
     sa.Column('meta_description', sa.String(length=300), nullable=True),
@@ -63,7 +64,6 @@ def upgrade():
     sa.Column('views', sa.Integer(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.Column('tags', sa.String(length=255), nullable=True),
-    sa.Column('slug', sa.String(length=250), nullable=True),
     sa.Column('category_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['category_id'], ['category.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
@@ -72,7 +72,6 @@ def upgrade():
     with op.batch_alter_table('post', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_post_created_at'), ['created_at'], unique=False)
         batch_op.create_index(batch_op.f('ix_post_published_at'), ['published_at'], unique=False)
-        batch_op.create_index(batch_op.f('ix_post_slug'), ['slug'], unique=True)
 
     op.create_table('comment',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -116,7 +115,6 @@ def downgrade():
 
     op.drop_table('comment')
     with op.batch_alter_table('post', schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f('ix_post_slug'))
         batch_op.drop_index(batch_op.f('ix_post_published_at'))
         batch_op.drop_index(batch_op.f('ix_post_created_at'))
 

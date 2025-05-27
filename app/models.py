@@ -34,6 +34,7 @@ class Post(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     author = db.relationship('User', backref=db.backref('posts', lazy='dynamic'))
     image_filename = db.Column(db.String(255), nullable=True)
+    thumbnail_filename = db.Column(db.String(255), nullable=True)
     alt_text = db.Column(db.String(200), nullable=True)
     video_embed_url = db.Column(db.String(300), nullable=True)
     meta_description = db.Column(db.String(300), nullable=True)
@@ -45,6 +46,18 @@ class Post(db.Model):
     tags = db.Column(db.String(255), nullable=True)
     page_views = db.relationship('PageView', backref='post', lazy='dynamic')
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
+
+    @property
+    def image_url(self):
+        if self.image_filename:
+            return f'/static/uploads/{self.image_filename}'
+        return None
+
+    @property
+    def thumbnail_url(self):
+        if self.thumbnail_filename:
+            return f'/static/uploads/thumbnails/{self.thumbnail_filename}'
+        return None
 
     def __repr__(self):
         return f'<Post {self.title[:50]}...>'

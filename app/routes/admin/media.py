@@ -98,26 +98,50 @@ def uploaded_file(current_user, filename):
 @admin_required
 def image_management(current_user):
     """Image management interface"""
-    # Get list of uploaded images
+    from app.models import Post
+    
+    # Get all posts with their cover images
+    posts = Post.query.all()
+    posts_data = []
+    
+    for post in posts:
+        post_data = {
+            'id': post.id,
+            'title': post.title,
+            'cover_image_url': url_for('static', filename=f'uploads/{post.image_filename}') if post.image_filename else None,
+            'alt_text': post.alt_text,
+            'inline_image_urls': []
+        }
+        
+        # Extract image URLs from post content (if any)
+        # This is a simple regex that looks for img tags with src attributes
+        import re
+        img_tags = re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', post.content or '')
+        post_data['inline_image_urls'] = img_tags
+        
+        posts_data.append(post_data)
+    
+    # Also get list of all uploaded images for reference
     upload_dir = current_app.config['UPLOAD_FOLDER']
-    images = []
+    all_images = []
     
     if os.path.exists(upload_dir):
         for filename in os.listdir(upload_dir):
             if allowed_file(filename):
                 file_path = os.path.join(upload_dir, filename)
                 stat = os.stat(file_path)
-                images.append({
+                all_images.append({
                     'name': filename,
-                    'url': url_for('public.uploaded_file', filename=filename),
+                    'url': url_for('static', filename=f'uploads/{filename}'),
                     'size': stat.st_size,
                     'modified': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
                 })
     
     # Sort images by modification time (newest first)
-    images.sort(key=lambda x: x['modified'], reverse=True)
+    all_images.sort(key=lambda x: x['modified'], reverse=True)
     
     return render_template('admin/admin_image_management.html', 
-                          title='이미지 관리', 
-                          images=images, 
+                          title='이미지 관리',
+                          posts_data=posts_data,
+                          all_images=all_images,
                           current_user=current_user)

@@ -86,20 +86,9 @@ def post_list():
     )
     posts_items = posts_pagination.items
     
-    # Prepare posts for display (e.g., generate image URLs)
+    # Prepare posts for display
     processed_posts = []
     for post_item in posts_items:
-        image_url = None
-        if post_item.image_filename:
-            # Check if UPLOAD_FOLDER is an absolute path or relative to static
-            if os.path.isabs(current_app.config['UPLOAD_FOLDER']) and 'static' in current_app.config['UPLOAD_FOLDER']:
-                 # Construct URL relative to static folder if UPLOAD_FOLDER is like /app/static/uploads
-                static_folder_name = os.path.basename(os.path.normpath(current_app.config['UPLOAD_FOLDER'])) #e.g. 'uploads'
-                image_url = url_for('static', filename=f'{static_folder_name}/{post_item.image_filename}')
-            else:
-                # Fallback or direct URL if not conventionally in static/uploads or using a different setup
-                image_url = url_for('public.uploaded_file', filename=post_item.image_filename)
-
         # Explicitly process category info to avoid object reference issues
         category_info = None
         if post_item.category:
@@ -114,7 +103,8 @@ def post_list():
             'created_at': post_item.created_at,
             'author_username': post_item.author.username,
             'tags': post_item.tags,  # Pass the tags string directly
-            'image_url': image_url,
+            'image_url': post_item.image_url,  # Use the property
+            'thumbnail_url': post_item.thumbnail_url,  # Use the property
             'alt_text': post_item.alt_text if post_item.alt_text else post_item.title, 
             'summary': Markup(post_item.content).striptags()[:200] + ('...' if len(Markup(post_item.content).striptags()) > 200 else ''),
             'views': post_item.views,  
@@ -155,11 +145,8 @@ def post_detail(post_id):
     plain_content_for_meta = Markup(post.content).striptags() # Basic stripping
     meta_description = (plain_content_for_meta[:155] + '...') if len(plain_content_for_meta) > 155 else plain_content_for_meta
 
-    image_url = None
-    if post.image_filename:
-        if 'static/uploads' in current_app.config['UPLOAD_FOLDER']:
-            image_url = url_for('static', filename=f'uploads/{post.image_filename}')
-        # else: handle non-static UPLOAD_FOLDER serving if necessary
+    # Use the post's image_url property which handles the URL generation
+    image_url = post.image_url
 
     # Comment form and comments list
     form = CommentForm() # For submitting new top-level comments

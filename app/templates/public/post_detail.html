@@ -157,8 +157,8 @@
             </p>
         </header>
 
-        {% if image_url %}
-            <img src="{{ image_url }}" class="img-fluid rounded mb-4 shadow-sm" alt="{{ post.alt_text if post.alt_text else post.title }}" style="max-height: 400px; width: 100%; object-fit: contain;">
+        {% if post.image_url %}
+            <img src="{{ post.image_url }}" class="img-fluid rounded mb-4 shadow-sm" alt="{{ post.alt_text if post.alt_text else post.title }}" style="max-height: 400px; width: 100%; object-fit: contain;">
         {% endif %}
 
         {% if post.video_embed_url %}

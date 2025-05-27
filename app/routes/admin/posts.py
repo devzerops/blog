@@ -3,8 +3,10 @@ Admin post management routes.
 Contains routes for creating, editing, and deleting blog posts.
 """
 
+import os
 from datetime import datetime
-from flask import render_template, redirect, url_for, flash, request, current_app
+from flask import render_template, redirect, url_for, flash, request, current_app, url_for
+from werkzeug.utils import secure_filename
 from werkzeug.exceptions import NotFound
 from sqlalchemy import func
 
@@ -13,6 +15,7 @@ from app.models import Post, Category
 from app.forms import PostForm
 from app.auth import admin_required, token_required
 from app.routes.admin import bp_admin
+from app.utils.image_utils import save_cover_image, delete_cover_image
 
 
 @bp_admin.route('/posts', methods=['GET'])
@@ -80,6 +83,23 @@ def new_post(current_user):
         else:
             current_app.logger.info("게시물 상태: 초안")
         
+        # Handle file upload and generate thumbnail
+        image_filename = None
+        thumbnail_filename = None
+        if form.image.data:
+            try:
+                image_filename, thumbnail_filename = save_cover_image(
+                    form.image.data,
+                    output_size=(1200, 630),  # Standard blog post image size
+                    thumbnail_size=(300, 200)  # Thumbnail size
+                )
+            except Exception as e:
+                current_app.logger.error(f"Error processing cover image: {e}")
+                flash('이미지 처리 중 오류가 발생했습니다. 다른 이미지로 시도해주세요.', 'error')
+                return render_template('admin/edit_post.html', title='New Post', 
+                                     form=form, legend='New Post', 
+                                     current_user=current_user)
+
         # Create post
         post = Post(
             title=form.title.data,
@@ -87,7 +107,10 @@ def new_post(current_user):
             author=current_user,
             is_published=is_published,
             published_at=published_at,
-            category_id=category_id
+            category_id=category_id,
+            image_filename=image_filename,
+            thumbnail_filename=thumbnail_filename,
+            alt_text=form.alt_text.data
         )
         
         db.session.add(post)
@@ -99,7 +122,12 @@ def new_post(current_user):
         
         flash('Post created successfully!', 'success')
         return redirect(url_for('admin.dashboard'))
-    return render_template('admin/edit_post.html', title='New Post', form=form, legend='New Post', current_user=current_user)
+    return render_template('admin/edit_post.html', 
+                         title='New Post', 
+                         form=form, 
+                         legend='New Post', 
+                         current_user=current_user,
+                         current_image_url=None)
 
 
 @bp_admin.route('/post/edit/<int:post_id>', methods=['GET', 'POST'])
@@ -118,9 +146,39 @@ def edit_post(current_user, post_id):
         current_app.logger.info(f"[edit_post] 원시 폼 데이터: {request.form}")
     
     if form.validate_on_submit():
+        # Handle file upload if a new image is provided
+        if form.image.data:
+            # Delete old images if they exist
+            if post.image_filename or post.thumbnail_filename:
+                try:
+                    delete_cover_image(post.image_filename, post.thumbnail_filename)
+                except Exception as e:
+                    current_app.logger.error(f"Error deleting old images: {e}")
+            
+            # Save the new image and generate thumbnail
+            try:
+                image_filename, thumbnail_filename = save_cover_image(
+                    form.image.data,
+                    output_size=(1200, 630),  # Standard blog post image size
+                    thumbnail_size=(300, 200)  # Thumbnail size
+                )
+                post.image_filename = image_filename
+                post.thumbnail_filename = thumbnail_filename
+            except Exception as e:
+                current_app.logger.error(f"Error processing cover image: {e}")
+                flash('이미지 처리 중 오류가 발생했습니다. 다른 이미지로 시도해주세요.', 'error')
+                return render_template('admin/edit_post.html', 
+                                     title='Edit Post', 
+                                     form=form, 
+                                     post=post, 
+                                     legend=f'Edit "{post.title}"', 
+                                     current_user=current_user,
+                                     current_image_url=url_for('static', filename=f'uploads/{post.image_filename}') if post.image_filename else None)
+        
         # Update post data
         post.title = form.title.data
         post.content = form.content.data
+        post.alt_text = form.alt_text.data
         
         # Handle category selection - convert "0" to None
         try:
@@ -159,15 +217,39 @@ def edit_post(current_user, post_id):
         # Populate tags for GET request (already handled by obj=post for other fields)
         form.tags.data = post.tags
 
-    return render_template('admin/edit_post.html', title='Edit Post', form=form, post=post, legend=f'Edit "{post.title}"', current_user=current_user)
+    # Prepare current image URLs if they exist
+    current_image_url = None
+    current_thumbnail_url = None
+    if post.image_filename:
+        current_image_url = url_for('static', filename=f'uploads/{post.image_filename}')
+        current_thumbnail_url = url_for('static', filename=f'uploads/thumbnails/{post.thumbnail_filename}') if post.thumbnail_filename else None
+
+    return render_template('admin/edit_post.html', 
+                         title='Edit Post', 
+                         form=form, 
+                         post=post, 
+                         legend=f'Edit "{post.title}"', 
+                         current_user=current_user,
+                         current_image_url=current_image_url,
+                         current_thumbnail_url=current_thumbnail_url)
 
 
 @bp_admin.route('/post/delete/<int:post_id>', methods=['POST'])
 @token_required
 def delete_post(current_user, post_id):
-    """Delete a blog post"""
+    # Delete a blog post and its associated images
     post = Post.query.get_or_404(post_id)
+    
+    # Delete associated images if they exist
+    if post.image_filename or post.thumbnail_filename:
+        try:
+            delete_cover_image(post.image_filename, post.thumbnail_filename)
+        except Exception as e:
+            current_app.logger.error(f"Error deleting image files for post {post_id}: {e}")
+    
+    # Delete the post
     db.session.delete(post)
     db.session.commit()
-    flash('Post deleted successfully!', 'success')
+    
+    flash('게시물이 성공적으로 삭제되었습니다!', 'success')
     return redirect(url_for('admin.dashboard'))

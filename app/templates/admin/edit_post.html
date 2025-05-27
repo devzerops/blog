@@ -305,7 +305,7 @@
                     <div class="card-body">
                         <div class="mb-3">
                             {{ form.image.label(class="form-label") }}
-                            {{ form.image(class="form-control" + (" is-invalid" if form.image.errors else "")) }}
+                            {{ form.image(class="form-control" + (" is-invalid" if form.image.errors else ""), accept="image/*") }}
                             {% if form.image.errors %}
                                 <div class="invalid-feedback">
                                     {% for error in form.image.errors %}
@@ -313,26 +313,67 @@
                                     {% endfor %}
                                 </div>
                             {% endif %}
+                            
                             {% if current_image_url %}
-                                <div class="mt-2">
-                                    <p class="mb-1"><small>Current Image:</small></p>
-                                    <img src="{{ current_image_url }}" alt="Current Image" class="img-fluid rounded" style="max-height: 150px;">
+                                <div class="mt-3">
+                                    <p class="mb-2 fw-bold">현재 이미지 미리보기</p>
+                                    
+                                    <!-- 메인 이미지 -->
+                                    <div class="mb-3">
+                                        <p class="mb-1"><small>메인 이미지 (1200x630px):</small></p>
+                                        <img src="{{ current_image_url }}" 
+                                             alt="{% if post.alt_text %}{{ post.alt_text }}{% else %}게시물 표지 이미지{% endif %}" 
+                                             class="img-fluid rounded border" 
+                                             style="max-height: 200px; max-width: 100%; object-fit: contain;">
+                                    </div>
+                                    
+                                    <!-- 썸네일 미리보기 -->
+                                    {% if current_thumbnail_url %}
+                                    <div>
+                                        <p class="mb-1"><small>썸네일 미리보기 (300x200px):</small></p>
+                                        <img src="{{ current_thumbnail_url }}" 
+                                             alt="{% if post.alt_text %}{{ post.alt_text }} (썸네일){% else %}게시물 썸네일 이미지{% endif %}" 
+                                             class="img-thumbnail" 
+                                             style="max-height: 100px; max-width: 150px; object-fit: cover;">
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <!-- 이미지 설명 -->
+                                    {% if post.alt_text %}
+                                        <div class="alert alert-light mt-2 p-2">
+                                            <small class="text-muted">
+                                                <i class="bi bi-card-text"></i> 
+                                                <strong>이미지 설명:</strong> {{ post.alt_text }}
+                                            </small>
+                                        </div>
+                                    {% endif %}
                                 </div>
-                            {% elif post_id and not current_image_url and form.image.data is none %}
-                                 <p class="mt-2 text-muted"><small>No image uploaded.</small></p>
-                            {% endif %}
-                        </div>
-
-                        <div class="mb-3">
-                            {{ form.alt_text.label(class="form-label") }}
-                            {{ form.alt_text(class="form-control" + (" is-invalid" if form.alt_text.errors else ""), placeholder="Image alt text") }}
-                            {% if form.alt_text.errors %}
-                                <div class="invalid-feedback">
-                                    {% for error in form.alt_text.errors %}
-                                        <span>{{ error }}</span>
-                                    {% endfor %}
+                            {% elif post and not current_image_url %}
+                                <div class="alert alert-warning mt-2">
+                                    <small><i class="bi bi-exclamation-triangle"></i> 이미지가 업로드되지 않았습니다.</small>
                                 </div>
                             {% endif %}
+                            
+                            <!-- 이미지 설명 입력 필드 -->
+                            <div class="mt-3">
+                                {{ form.alt_text.label(class="form-label") }}
+                                {{ form.alt_text(class="form-control" + (" is-invalid" if form.alt_text.errors else ""), 
+                                              placeholder="이미지 설명을 입력하세요 (SEO 및 접근성 향상에 도움이 됨)",
+                                              rows="2") }}
+                                {% if form.alt_text.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.alt_text.errors %}
+                                            <span>{{ error }}</span>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">
+                                    <small>
+                                        <i class="bi bi-info-circle"></i> 
+                                        이미지에 대한 설명을 입력하세요. 이 설명은 화면 낭독기 사용자와 검색 엔진에 표시됩니다.
+                                    </small>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -741,85 +782,102 @@
                             return false;
                         }
                         
-                        // 폼 새로 만들기
-                        const newForm = document.createElement('form');
-                        newForm.method = 'POST';
-                        newForm.action = window.location.href;
-                        newForm.enctype = 'multipart/form-data';
+                        // 원본 폼 가져오기
+                        const form = document.querySelector('form');
+                        
+                        // FormData 객체 생성 (파일 업로드 지원)
+                        const formData = new FormData();
+                        
+                        // 제목 필드 수동으로 추가 (가장 먼저 추가)
+                        const postForm = document.querySelector('form[method="POST"]');
+                        if (!postForm) {
+                            console.error('Post form not found!');
+                            return false;
+                        }
+                        
+                        const titleInput = postForm.querySelector('input[name="title"]');
+                        if (titleInput) {
+                            console.log('Title field found, value:', titleInput.value);
+                            formData.append('title', titleInput.value);
+                        } else {
+                            console.error('Title input not found in post form!');
+                            return false;
+                        }
+                        
+                        // 폼의 모든 필드 추가
+                        const formElements = form.elements;
+                        for (let i = 0; i < formElements.length; i++) {
+                            const element = formElements[i];
+                            
+                            // 파일 입력 필드는 나중에 처리
+                            if (element.type === 'file' || element.name === 'title') {
+                                continue;
+                            }
+                            
+                            // 체크박스나 라디오 버튼 처리
+                            if ((element.type === 'checkbox' || element.type === 'radio') && !element.checked) {
+                                continue;
+                            }
+                            
+                            // 이름이 있는 필드만 추가
+                            if (element.name && element.name !== 'title') {
+                                console.log('Adding field:', element.name, '=', element.value);
+                                formData.append(element.name, element.value);
+                            }
+                        }
+                        
+                        // 타이틀 필드가 비어있는지 확인 (이미 위에서 titleInput을 선언했으므로 재사용)
+                        if (!titleInput.value.trim()) {
+                            alert('제목을 입력해주세요.');
+                            return false;
+                        }
+                        
+                        // 에디터 내용 업데이트
+                        formData.set('content', editorContent);
+                        
+                        // 버튼 상태 추가
+                        formData.append(buttonName, buttonValue || 'true');
+                        
+                        // 파일 업로드 필드 처리
+                        const fileInput = postForm.querySelector('input[type="file"][name="image"]');
+                        if (fileInput && fileInput.files.length > 0) {
+                            console.log('Adding cover image to form data:', fileInput.files[0].name);
+                            formData.append('image', fileInput.files[0]);
+                        } else {
+                            console.log('이미지 파일이 첨부되지 않았습니다.');
+                        }
+                        
+                        // XMLHttpRequest를 사용하여 폼 제출
+                        const xhr = new XMLHttpRequest();
+                        // 현재 URL이 편집 모드인지 확인 (post_id가 있는지)
+                        const isEditMode = window.location.pathname.includes('/edit/');
+                        const actionUrl = isEditMode ? window.location.pathname : "{{ url_for('admin.new_post') }}";
+                        xhr.open('POST', actionUrl, true);
                         
                         // CSRF 토큰 추가
-                        const csrfField = document.querySelector('input[name="csrf_token"]');
-                        if (csrfField) {
-                            const csrfInput = document.createElement('input');
-                            csrfInput.type = 'hidden';
-                            csrfInput.name = 'csrf_token';
-                            csrfInput.value = csrfField.value;
-                            newForm.appendChild(csrfInput);
+                        const csrfToken = document.querySelector('input[name="csrf_token"]');
+                        if (csrfToken) {
+                            xhr.setRequestHeader('X-CSRFToken', csrfToken.value);
+                            formData.append('csrf_token', csrfToken.value);
                         }
                         
-                        // 제목 추가
-                        const titleField = document.querySelector('input[name="title"]');
-                        if (titleField) {
-                            const titleInput = document.createElement('input');
-                            titleInput.type = 'hidden';
-                            titleInput.name = 'title';
-                            titleInput.value = titleField.value;
-                            newForm.appendChild(titleInput);
-                        }
-                        
-                        // 내용 추가 (에디터에서 가져온 내용)
-                        const contentInput = document.createElement('input');
-                        contentInput.type = 'hidden';
-                        contentInput.name = 'content';
-                        contentInput.value = editorContent;
-                        newForm.appendChild(contentInput);
-                        
-                        // 버튼 정보 추가
-                        const buttonInput = document.createElement('input');
-                        buttonInput.type = 'hidden';
-                        buttonInput.name = buttonName;
-                        buttonInput.value = buttonValue || 'true';
-                        newForm.appendChild(buttonInput);
-                        
-                        // 카테고리 선택 값 추가 - 이 부분이 중요함
-                        const categoryField = document.querySelector('select[name="category"]');
-                        if (categoryField) {
-                            console.log('카테고리 값:', categoryField.value);
-                            const categoryInput = document.createElement('input');
-                            categoryInput.type = 'hidden';
-                            categoryInput.name = 'category';
-                            categoryInput.value = categoryField.value;
-                            newForm.appendChild(categoryInput);
-                        }
-                        
-                        // 태그 추가 - 태그 저장 문제 해결
-                        const tagsField = document.getElementById('actual-tags-input');
-                        if (tagsField) {
-                            console.log('태그 값:', tagsField.value);
-                            const tagsInput = document.createElement('input');
-                            tagsInput.type = 'hidden';
-                            tagsInput.name = 'tags';
-                            tagsInput.value = tagsField.value;
-                            newForm.appendChild(tagsInput);
-                        }
-                        
-                        // 그 외 필요한 필드들 추가
-                        const otherFields = form.querySelectorAll('input:not([type="submit"]), textarea');
-                        otherFields.forEach(field => {
-                            if (field.name && field.name !== 'content' && field.name !== 'title' && field.name !== 'csrf_token' && field.name !== 'category') {
-                                const input = document.createElement('input');
-                                input.type = 'hidden';
-                                input.name = field.name;
-                                input.value = field.value;
-                                newForm.appendChild(input);
+                        xhr.onload = function() {
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                // 성공 시 페이지 새로고침
+                                window.location.reload();
+                            } else {
+                                console.error('서버 오류:', xhr.status, xhr.statusText);
+                                alert('게시글 저장 중 오류가 발생했습니다. 다시 시도해주세요.');
                             }
-                        });
+                        };
                         
-                        // 폼을 동적으로 생성하고 제출
-                        document.body.appendChild(newForm);
-                        console.log('새 폼 제출 준비 완료');
-                        newForm.submit();
-                        console.log('폼 제출됨');
+                        xhr.onerror = function() {
+                            console.error('네트워크 오류');
+                            alert('네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.');
+                        };
+                        
+                        console.log('폼 데이터 전송 중...');
+                        xhr.send(formData);
                         return true;
                     } catch (error) {
                         console.error('폼 제출 중 오류 발생:', error);
@@ -828,7 +886,39 @@
                     }
                 }
                 
-                // 제출 버튼에 클릭 이벤트 리스너 추가
+                // 폼 제출 이벤트 리스너 추가
+                const postForm = document.querySelector('form');
+                postForm.addEventListener('submit', function(e) {
+                    e.preventDefault(); // 기본 폼 제출 방지
+                    
+                    // 클릭된 버튼 찾기
+                    const submitButton = document.activeElement;
+                    if (submitButton && submitButton.type === 'submit') {
+                        const buttonName = submitButton.name;
+                        const buttonValue = submitButton.value || 'true';
+                        submitPostForm(buttonName, buttonValue);
+                    } else {
+                        // 기본값으로 저장
+                        submitPostForm('publish', 'true');
+                    }
+                });
+                
+                // 기존 버튼 이벤트 리스너 제거
+                document.querySelectorAll('button[type="submit"]').forEach(button => {
+                    button.onclick = null;
+                });
+                
+                // 제출 버튼에 클릭 이벤트 리스너 추가 (이벤트 위임을 위해)
+                document.querySelector('form').addEventListener('click', function(e) {
+                    if (e.target && e.target.type === 'submit') {
+                        e.preventDefault();
+                        const buttonName = e.target.name || 'publish';
+                        const buttonValue = e.target.value || 'true';
+                        submitPostForm(buttonName, buttonValue);
+                    }
+                });
+                
+                // 기존 코드 유지 (하위 호환성 유지)
                 document.querySelectorAll('button[type="submit"]').forEach(button => {
                     button.addEventListener('click', function(e) {
                         e.preventDefault();
