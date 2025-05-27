@@ -112,6 +112,29 @@ blog/                       # 프로젝트 루트
 - **SiteSetting**: 사이트 설정 (제목, 설명 등)
 - **PageView**: 페이지 조회수
 
+## 데이터베이스 관리
+
+### CLI 사용법
+```bash
+# 데이터베이스 연결 확인
+python -m database.scripts.db_utils check
+
+# 데이터베이스 테이블 생성
+python -m database.scripts.db_utils create
+```
+
+### 직접 실행
+```python
+from database.scripts.db_utils import check_db_connection, create_database
+
+# 앱 컨텍스트 내에서 실행
+from app import create_app
+app = create_app()
+with app.app_context():
+    check_db_connection()  # 연결 확인
+    create_database()     # 테이블 생성
+```
+
 ## 주요 기능 설명
 
 - **관리자 대시보드**: 로그인 후 게시물, 카테고리, 댓글, 사이트 설정 관리
@@ -137,4 +160,4 @@ docker-compose exec web flask db upgrade
 flask db upgrade
 flask init-db
 cd /home/server/Documents/develop/blog && export FLASK_DEBUG=1 && python -m flask run --host=0.0.0.0
- ```
+ 
