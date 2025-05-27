@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    container_name: blog_db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=blog_user
+      - POSTGRES_PASSWORD=blog_password
+      - POSTGRES_DB=blog_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    networks:
+      - blog_network
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blog_user -d blog_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: blog_web
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+      - static_volume:/app/app/static
+      - instance_volume:/app/instance
+    environment:
+      - FLASK_APP=run.py
+      - FLASK_ENV=development
+      - DB_TYPE=postgresql
+      - POSTGRES_USER=blog_user
+      - POSTGRES_PASSWORD=blog_password
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=blog_db
+      - SECRET_KEY=your-secret-key-here
+      - DATABASE_URL=postgresql://blog_user:blog_password@db:5432/blog_db
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - blog_network
+    command: >
+      sh -c "./docker-entrypoint.sh && gunicorn --bind 0.0.0.0:5000 --workers 4 --threads 2 run:app"
+
+networks:
+  blog_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  static_volume:
+  instance_volume:
