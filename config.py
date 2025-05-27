@@ -42,3 +42,26 @@ class Config:
 class DevelopmentConfig(Config):
     # TINYMCE_API_KEY = os.environ.get('TINYMCE_API_KEY') # Removed for self-hosted
     pass
+
+
+class TestConfig(Config):
+    """Configuration for testing with a separate test database"""
+    TESTING = True
+    WTF_CSRF_ENABLED = False
+    
+    # Use a separate test database
+    POSTGRES_TEST_DB = os.environ.get('POSTGRES_DB', 'test_blog_db')
+    POSTGRES_TEST_USER = os.environ.get('POSTGRES_TEST_USER', 'postgres')
+    POSTGRES_TEST_PASSWORD = os.environ.get('POSTGRES_TEST_PASSWORD', '')
+    POSTGRES_TEST_HOST = os.environ.get('POSTGRES_TEST_HOST', 'localhost')
+    POSTGRES_TEST_PORT = os.environ.get('POSTGRES_TEST_PORT', '5432')
+    
+    # Override the database URI for testing
+    SQLALCHEMY_DATABASE_URI = (
+        f'postgresql://{POSTGRES_TEST_USER}:'
+        f'{POSTGRES_TEST_PASSWORD}@{POSTGRES_TEST_HOST}:'
+        f'{POSTGRES_TEST_PORT}/{POSTGRES_TEST_DB}'
+    )
+    
+    # Speed up tests by using a faster password hashing algorithm
+    PASSWORD_HASH = 'plaintext'  # Only for testing, never use in production!
