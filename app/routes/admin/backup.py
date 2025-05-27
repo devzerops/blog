@@ -57,7 +57,6 @@ def export_all_content(current_user):
                 'user_id': post.user_id,
                 'category_id': post.category_id,
                 'tags': post.tags, 
-                'slug': post.slug,
                 'featured_image_url': relative_image_path  # Include relative path to image in ZIP
             }
             posts_data.append(post_data)

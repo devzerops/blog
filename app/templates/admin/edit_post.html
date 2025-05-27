@@ -771,15 +771,31 @@
                 // 폼 제출을 위한 함수
                 function submitPostForm(buttonName, buttonValue) {
                     try {
-                        // 에디터 내용 가져오기
-                        const editorContent = editor.getData();
+                        let content = '';
                         
-                        // 디버깅용 로그
-                        console.log('에디터 내용 길이:', editorContent.length);
-                        
-                        if (editorContent.trim().length === 0) {
-                            alert('내용을 입력해주세요.');
-                            return false;
+                        // 마크다운 모드인 경우 마크다운을 HTML로 변환
+                        if (markdownContainer.style.display !== 'none') {
+                            console.log('마크다운 모드에서 제출 시도');
+                            const markdownText = markdownEditor.value;
+                            if (markdownText.trim().length === 0) {
+                                alert('내용을 입력해주세요.');
+                                return false;
+                            }
+                            // 마크다운을 HTML로 변환
+                            content = marked.parse(markdownText, {
+                                gfm: true,
+                                breaks: true,
+                                sanitize: false
+                            });
+                            console.log('마크다운에서 변환된 HTML 길이:', content.length);
+                        } else {
+                            // 일반 에디터 모드인 경우
+                            content = editor.getData();
+                            if (content.trim().length === 0) {
+                                alert('내용을 입력해주세요.');
+                                return false;
+                            }
+                            console.log('에디터 내용 길이:', content.length);
                         }
                         
                         // 원본 폼 가져오기
@@ -833,7 +849,7 @@
                         }
                         
                         // 에디터 내용 업데이트
-                        formData.set('content', editorContent);
+                        formData.set('content', content);
                         
                         // 버튼 상태 추가
                         formData.append(buttonName, buttonValue || 'true');
