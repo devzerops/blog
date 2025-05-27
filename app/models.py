@@ -42,8 +42,7 @@ class Post(db.Model):
     views = db.Column(db.Integer, default=0)
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     comments = db.relationship('Comment', backref='post', lazy='dynamic', cascade='all, delete-orphan')
-    tags = db.Column(db.String(255), nullable=True) 
-    slug = db.Column(db.String(250), unique=True, nullable=True, index=True) 
+    tags = db.Column(db.String(255), nullable=True)
     page_views = db.relationship('PageView', backref='post', lazy='dynamic')
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
 
