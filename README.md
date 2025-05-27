@@ -126,3 +126,14 @@ blog/                       # 프로젝트 루트
 Flask 기본 구조와 확장성에 대한 설명은 [위키독스], [REAL Python], [네이버 블로그] 등에서 확인할 수 있습니다.
 
 Flask Blueprint, 템플릿 구조, DB 마이그레이션 등은 Flask 공식 튜토리얼 및 주요 블로그 예제를 참고했습니다.
+
+
+## 실행
+
+``` 
+flask db init
+flask db migrate -m "Initial migration"
+docker-compose exec web flask db upgrade
+flask db upgrade
+cd /home/server/Documents/develop/blog && export FLASK_DEBUG=1 && python -m flask run --host=0.0.0.0
+ ```
