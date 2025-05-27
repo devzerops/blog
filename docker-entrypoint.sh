@@ -1,58 +1,53 @@
 #!/bin/bash
 set -e
 
-# Function to check PostgreSQL connection
-check_postgres() {
-    echo "Waiting for PostgreSQL to become available..."
-    local max_attempts=30
-    local attempt=0
-    
-    while [ $attempt -lt $max_attempts ]; do
-        if PGPASSWORD=$POSTGRES_PASSWORD psql -h "db" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c '\q' 2>/dev/null; then
-            echo "✅ PostgreSQL is up and running!"
-            return 0
-        fi
-        
-        attempt=$((attempt + 1))
-        echo "⏳ PostgreSQL is unavailable - attempt $attempt of $max_attempts - sleeping..."
-        sleep 2
-    done
-    
-    echo "❌ Failed to connect to PostgreSQL after $max_attempts attempts. Exiting..."
-    exit 1
+# 환경 변수 기본값 설정
+POSTGRES_HOST=${POSTGRES_HOST:-db}
+POSTGRES_PORT=${POSTGRES_PORT:-5432}
+POSTGRES_USER=${POSTGRES_USER:-postgres}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+POSTGRES_DB=${POSTGRES_DB:-blog}
+
+echo "📦 환경 변수 설정 완료"
+
+# PostgreSQL 연결 확인 함수
+wait_for_postgres() {
+    echo "⏳ PostgreSQL 연결을 기다리는 중..."
+    python3 /app/wait_for_postgres.py
+    if [ $? -ne 0 ]; then
+        echo "❌ PostgreSQL 연결에 실패했습니다. 애플리케이션을 종료합니다."
+        exit 1
+    fi
 }
 
-# Main execution
+# 메인 실행 함수
 main() {
-    # Wait for PostgreSQL to be ready
-    echo "Waiting for PostgreSQL to become available..."
-    while ! nc -z $POSTGRES_HOST $POSTGRES_PORT; do
-        sleep 1
-    done
-    echo "✅ PostgreSQL is up and running!"
+    # PostgreSQL 연결 대기
+    wait_for_postgres
 
-    # Create necessary directories with proper permissions
-    echo "📂 Creating necessary directories..."
+    # 필요한 디렉토리 생성 및 권한 설정
+    echo "📂 필요한 디렉토리를 생성합니다..."
     mkdir -p /app/instance /app/app/static/uploads /app/app/static/temp
     chmod -R 777 /app/app/static
 
-    # Initialize migrations directory if it doesn't exist
+    # 마이그레이션 디렉토리 초기화 (필요한 경우)
     if [ ! -d "/app/migrations" ]; then
-        echo "🔄 Initializing migrations directory..."
+        echo "🔄 마이그레이션 디렉토리를 초기화합니다..."
         flask db init
     fi
 
-    # Initialize database
-    echo "🔄 Running database migrations..."
-    flask db migrate -m "Initial migration"
+    # 마이그레이션 적용
+    echo "🔄 데이터베이스 마이그레이션을 적용합니다..."
     flask db upgrade
 
-    # Initialize database with default data
-    echo "💾 Initializing database with default data..."
-    flask init-db
+    # 애플리케이션 실행
+    echo "🚀 애플리케이션을 시작합니다..."
+    exec "$@"
 
-    echo "✅ Database initialization complete!"
+    # 초기 데이터베이스 생성
+    echo "🔄 초기 데이터베이스를 생성합니다..."
+    flask init-db
 }
 
-# Run the main function
-main
+# 메인 함수 실행
+main "$@"

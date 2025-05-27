@@ -1,5 +1,10 @@
+import os
+from dotenv import load_dotenv
 from app import create_app, db
 from app.models import User, Post, Category, Comment, SiteSetting, PageView
+
+# .env 파일 로드
+load_dotenv()
 
 app = create_app()
 
@@ -23,10 +28,17 @@ def init_db_command():
     db.create_all()
     
     # 초기 관리자 계정 생성 확인
-    if not User.query.filter_by(username='admin').first():
-        print("관리자 계정 생성 중...")
-        admin = User(username='admin')
-        admin.set_password('adminpass')  # 실제 환경에서는 강력한 비밀번호 사용 필요
+    admin_username = os.getenv('ADMIN_USERNAME', 'admin')
+    admin_password = os.getenv('ADMIN_PASSWORD')
+    
+    if not admin_password:
+        print("경고: ADMIN_PASSWORD가 설정되지 않았습니다. .env 파일을 확인해주세요.")
+        return
+        
+    if not User.query.filter_by(username=admin_username).first():
+        print(f"관리자 계정({admin_username}) 생성 중...")
+        admin = User(username=admin_username)
+        admin.set_password(admin_password)
         db.session.add(admin)
         
         # 기본 사이트 설정 생성
