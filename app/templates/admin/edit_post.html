@@ -390,7 +390,8 @@
 
                         <div class="mb-3">
                             {{ form.category.label(class="form-label") }}
-                            {{ form.category(class="form-select") }}
+                            {{ form.category(class="form-select", **{'id': 'category'}) }}
+                            <small class="text-muted d-block mt-1">현재 선택된 값: <span id="current-category-value">{{ form.category.data if form.category.data else 'None' }}</span></small>
                             {% if form.category.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.category.errors %}
@@ -932,14 +933,6 @@
                         const buttonValue = e.target.value || 'true';
                         submitPostForm(buttonName, buttonValue);
                     }
-                });
-                
-                // 기존 코드 유지 (하위 호환성 유지)
-                document.querySelectorAll('button[type="submit"]').forEach(button => {
-                    button.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        submitPostForm(this.name, this.value);
-                    });
                 });
                 
                 // 기존 폼 제출 이벤트는 무시

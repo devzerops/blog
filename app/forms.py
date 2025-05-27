@@ -1,9 +1,8 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, PasswordField, TextAreaField, FileField, BooleanField, IntegerField, URLField
+from wtforms import StringField, SubmitField, PasswordField, TextAreaField, FileField, BooleanField, IntegerField, URLField, SelectField
 from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError, Optional, URL as URLValidator, NumberRange
 from flask_wtf.file import FileField, FileAllowed
 from app.models import User, Post, SiteSetting, Category
-from wtforms_sqlalchemy.fields import QuerySelectField
 
 # Helper function for category query
 def category_query():
@@ -47,16 +46,15 @@ class PostForm(FlaskForm):
     video_embed_url = StringField('동영상 URL (선택 사항)', validators=[Optional(), URLValidator(), Length(max=300)]) 
     tags = StringField('태그 (쉼표로 구분)', validators=[Optional(), Length(max=255)]) 
     meta_description = TextAreaField('메타 설명 (SEO, 선택 사항)', validators=[Optional(), Length(max=300)]) 
-    category = QuerySelectField(
-        'Category',
-        query_factory=category_query,
-        get_label='name',
-        allow_blank=True,
-        blank_text='-- Select a Category --',
-        validators=[Optional()]
-    )
+    category = SelectField('카테고리', coerce=int, validators=[Optional()])
     is_published = BooleanField('공개 발행', default=True)
     submit = SubmitField('저장')
+    
+    def __init__(self, *args, **kwargs):
+        super(PostForm, self).__init__(*args, **kwargs)
+        self.category.choices = [(0, '-- 카테고리 없음 --')] + [
+            (c.id, c.name) for c in Category.query.order_by(Category.name).all()
+        ]
 
 class SettingsForm(FlaskForm):
     username = StringField('사용자 아이디', validators=[DataRequired(), Length(min=3, max=64)])

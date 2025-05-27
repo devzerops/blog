@@ -135,5 +135,6 @@ flask db init
 flask db migrate -m "Initial migration"
 docker-compose exec web flask db upgrade
 flask db upgrade
+flask init-db
 cd /home/server/Documents/develop/blog && export FLASK_DEBUG=1 && python -m flask run --host=0.0.0.0
  ```

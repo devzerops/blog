@@ -57,19 +57,9 @@ def new_post(current_user):
     
     # 폼 검증 성공
     if form.validate_on_submit():
-        # Handle category selection - convert "0" to None
-        try:
-            category_id = int(request.form.get('category', 0))
-            if category_id == 0:
-                category_id = None
-                current_app.logger.info(f"카테고리 선택 없음, category_id: {category_id}")
-            else:
-                current_app.logger.info(f"선택된 카테고리 ID: {category_id}")
-        except ValueError:
-            category_id = None
-            current_app.logger.error(f"카테고리 ID 변환 오류: {request.form.get('category')}")
-        
-        current_app.logger.info(f"최종 사용될 category_id: {category_id}")
+        # Handle category selection - form.category.data는 이미 coerce=int로 처리됨
+        category_id = form.category.data if form.category.data != 0 else None
+        current_app.logger.info(f"카테고리 ID: {category_id}")
         
         # Determine published status from form
         is_published = False
@@ -137,11 +127,6 @@ def edit_post(current_user, post_id):
     post = Post.query.get_or_404(post_id)
     form = PostForm(obj=post)
     
-    # Load categories for selection
-    form.category.choices = [(0, '-- 카테고리 없음 --')] + [
-        (c.id, c.name) for c in Category.query.order_by(Category.name).all()
-    ]
-    
     if request.method == 'POST':
         current_app.logger.info(f"[edit_post] 원시 폼 데이터: {request.form}")
     
@@ -180,20 +165,9 @@ def edit_post(current_user, post_id):
         post.content = form.content.data
         post.alt_text = form.alt_text.data
         
-        # Handle category selection - convert "0" to None
-        try:
-            category_id = int(request.form.get('category', 0))
-            if category_id == 0:
-                category_id = None
-                current_app.logger.info(f"[edit_post] 카테고리 선택 없음, category_id: {category_id}")
-            else:
-                current_app.logger.info(f"[edit_post] 선택된 카테고리 ID: {category_id}")
-        except ValueError:
-            category_id = None
-            current_app.logger.error(f"[edit_post] 카테고리 ID 변환 오류: {request.form.get('category')}")
-        
-        current_app.logger.info(f"[edit_post] 최종 사용될 category_id: {category_id}")
-        post.category_id = category_id
+        # Handle category selection - form.category.data는 이미 coerce=int로 처리됨
+        post.category_id = form.category.data if form.category.data != 0 else None
+        current_app.logger.info(f"[edit_post] 카테고리 ID: {post.category_id}")
         
         # Handle publishing status
         if 'publish' in request.form and request.form['publish'] == 'true' and not post.is_published:
