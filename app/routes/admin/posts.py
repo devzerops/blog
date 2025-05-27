@@ -166,7 +166,8 @@ def edit_post(current_user, post_id):
         post.alt_text = form.alt_text.data
         
         # Handle category selection - form.category.data는 이미 coerce=int로 처리됨
-        post.category_id = form.category.data if form.category.data != 0 else None
+        category_id = form.category.data if form.category.data != 0 else None
+        post.category_id = category_id
         current_app.logger.info(f"[edit_post] 카테고리 ID: {post.category_id}")
         
         # Handle publishing status

@@ -390,7 +390,7 @@
 
                         <div class="mb-3">
                             {{ form.category.label(class="form-label") }}
-                            {{ form.category(class="form-select", **{'id': 'category'}) }}
+                            {{ form.category(class="form-select", **{'id': 'category_id'}) }}
                             <small class="text-muted d-block mt-1">현재 선택된 값: <span id="current-category-value">{{ form.category.data if form.category.data else 'None' }}</span></small>
                             {% if form.category.errors %}
                                 <div class="invalid-feedback d-block">
