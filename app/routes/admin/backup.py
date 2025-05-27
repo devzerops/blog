@@ -242,7 +242,6 @@ def data_restore(current_user):
                         post.user_id = post_data.get('user_id')  # Note: using user_id not author_id
                         post.category_id = post_data.get('category_id')
                         post.tags = post_data.get('tags')
-                        post.slug = post_data.get('slug')
                         if image_filename:
                             post.image_filename = image_filename
                     else:
@@ -258,7 +257,6 @@ def data_restore(current_user):
                             user_id=post_data.get('user_id'),  # Note: using user_id not author_id
                             category_id=post_data.get('category_id'),
                             tags=post_data.get('tags'),
-                            slug=post_data.get('slug'),
                             image_filename=image_filename
                         )
                         db.session.add(post)
