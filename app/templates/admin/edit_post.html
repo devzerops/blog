@@ -693,23 +693,33 @@
                 // 에디터 인스턴스 저장
                 window.editor = editor;
                 
-                // highlight.js로 코드 구문 강조 적용 - 이미 강조된 요소는 건너뛸기
+                // highlight.js로 코드 구문 강조 적용 - HTML 이스케이프 처리
                 function applyHighlighting() {
                     document.querySelectorAll('pre code').forEach((block) => {
                         // 이미 강조된 요소인지 확인
                         if (!block.dataset.highlighted) {
+                            // HTML 이스케이프 처리
+                            const text = block.textContent;
+                            const node = document.createTextNode(text);
+                            block.textContent = '';
+                            block.appendChild(node);
+                            
+                            // 구문 강조 적용
                             hljs.highlightElement(block);
+                            block.dataset.highlighted = 'true';
                         }
                     });
                 }
                 
-                // 코드 블록이 삽입되면 구문 강조 적용
+                // 코드 블록이 삽입되면 구문 강조 적용 (디바운스로 성능 최적화)
+                let highlightTimeout;
                 editor.model.document.on('change:data', () => {
-                    setTimeout(applyHighlighting, 100);
+                    clearTimeout(highlightTimeout);
+                    highlightTimeout = setTimeout(applyHighlighting, 300);
                 });
                 
-                // 초기 구문 강조 적용
-                setTimeout(applyHighlighting, 100);
+                // 초기 구문 강조 적용 (약간의 지연을 두어 DOM이 완전히 로드된 후 실행)
+                setTimeout(applyHighlighting, 500);
                 
                 console.log('CKEditor 초기화 완료');
                 
