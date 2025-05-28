@@ -461,7 +461,7 @@
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary me-md-2">Cancel</a>
                             <button type="submit" name="save_draft" value="true" class="btn btn-info me-md-2">Save Draft</button>
-                            <button type="submit" name="publish" value="true" class="btn btn-primary">{{ 'Publish' if not post else 'Update Post' }}</button>
+                            <button type="submit" name="publish" value="true" class="btn btn-primary" formnovalidate>Publish</button>
                         </div>
                     </div>
                 </div>
@@ -903,42 +903,58 @@
                     }
                 }
                 
-                // 폼 제출 이벤트 리스너 추가
+                // 폼 제출 처리
                 const postForm = document.querySelector('form');
+                
+                // 폼 제출 이벤트 핸들러
                 postForm.addEventListener('submit', function(e) {
-                    e.preventDefault(); // 기본 폼 제출 방지
+                    console.log('폼 제출 이벤트 발생');
                     
-                    // 클릭된 버튼 찾기
-                    const submitButton = document.activeElement;
-                    if (submitButton && submitButton.type === 'submit') {
-                        const buttonName = submitButton.name;
-                        const buttonValue = submitButton.value || 'true';
-                        submitPostForm(buttonName, buttonValue);
-                    } else {
-                        // 기본값으로 저장
-                        submitPostForm('publish', 'true');
-                    }
-                });
-                
-                // 기존 버튼 이벤트 리스너 제거
-                document.querySelectorAll('button[type="submit"]').forEach(button => {
-                    button.onclick = null;
-                });
-                
-                // 제출 버튼에 클릭 이벤트 리스너 추가 (이벤트 위임을 위해)
-                document.querySelector('form').addEventListener('click', function(e) {
-                    if (e.target && e.target.type === 'submit') {
+                    // 에디터 내용을 textarea에 복사
+                    const editorData = editor.getData();
+                    const contentTextarea = document.getElementById('content');
+                    contentTextarea.value = editorData;
+                    
+                    console.log('에디터 내용:', editorData);
+                    console.log('Textarea 내용:', contentTextarea.value);
+                    
+                    // 내용이 비어있는 경우 폼 제출 방지
+                    if (!editorData.trim()) {
+                        console.log('내용이 비어있음');
                         e.preventDefault();
-                        const buttonName = e.target.name || 'publish';
-                        const buttonValue = e.target.value || 'true';
-                        submitPostForm(buttonName, buttonValue);
+                        alert('내용을 입력해주세요.');
+                        return false;
                     }
+                    
+                    console.log('폼 제출 진행');
+                    return true;
                 });
                 
-                // 기존 폼 제출 이벤트는 무시
-                form.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    console.log('기존 폼 제출 차단됨');
+                // 제출 버튼 클릭 이벤트 핸들러
+                document.querySelectorAll('button[type="submit"]').forEach(button => {
+                    button.addEventListener('click', function(e) {
+                        console.log('제출 버튼 클릭:', this.name, this.value);
+                        
+                        // 기존의 숨겨진 input 제거 (중복 방지)
+                        document.querySelectorAll('input[type="hidden"][name^="publish"], input[type="hidden"][name^="save_draft"]').forEach(el => el.remove());
+                        
+                        // 클릭된 버튼의 name과 value를 폼에 추가
+                        if (this.name) {
+                            const input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = this.name;
+                            input.value = this.value || 'true';
+                            postForm.appendChild(input);
+                            console.log('추가된 hidden input:', input.name, '=', input.value);
+                        }
+                        
+                        // 폼 제출 전 에디터 내용을 textarea에 복사
+                        const editorData = editor.getData();
+                        document.getElementById('content').value = editorData;
+                        
+                        // 폼 제출
+                        return true;
+                    });
                 });
                 
                 // 마크다운 모드와 일반 편집기 모드 전환 기능 추가

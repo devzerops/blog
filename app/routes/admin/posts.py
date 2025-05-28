@@ -49,10 +49,19 @@ def new_post(current_user):
     
     # Process form submission
     if request.method == 'POST':
+        current_app.logger.info(f"[new_post] Raw form data: {request.form}")
+        current_app.logger.info(f"[new_post] Form data: title={form.title.data}, content length={len(form.content.data) if form.content.data else 0}")
+        
+        # 수동으로 content 필드 검증
+        if not form.content.data or not form.content.data.strip():
+            current_app.logger.error("[new_post] Content is empty")
+            form.content.errors.append('내용을 입력해주세요.')
+            return render_template('admin/edit_post.html', title='New Post', form=form, legend='New Post', current_user=current_user)
+        
         # 폼 유효성 검증 실패 시 오류 로깅
         if not form.validate_on_submit():
             for field, errors in form.errors.items():
-                current_app.logger.error(f"Field {field} failed validation with errors: {errors}")
+                current_app.logger.error(f"[new_post] Field {field} failed validation with errors: {errors}")
             return render_template('admin/edit_post.html', title='New Post', form=form, legend='New Post', current_user=current_user)
     
     # 폼 검증 성공
