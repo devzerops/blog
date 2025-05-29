@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "blog.fullname" . }}
+  labels:
+    {{- include "blog.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.app.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "blog.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "blog.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.app.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.app.service.port }}
+              protocol: TCP
+          env:
+            # Application settings
+            - name: FLASK_APP
+              value: "run.py"
+            - name: FLASK_ENV
+              value: {{ .Values.app.env.FLASK_ENV | quote }}
+            - name: DB_TYPE
+              value: {{ .Values.app.env.DB_TYPE | quote }}
+            - name: SECRET_KEY
+              value: {{ .Values.app.env.SECRET_KEY | quote }}
+            - name: ADMIN_PASSWORD
+              value: {{ .Values.app.env.ADMIN_PASSWORD | quote }}
+            - name: POSTS_PER_PAGE
+              value: {{ .Values.app.env.POSTS_PER_PAGE | quote }}
+            
+            # Database connection settings
+            {{- if eq .Values.database.type "external" }}
+            # External database configuration
+            - name: POSTGRES_HOST
+              value: {{ .Values.database.external.host | quote }}
+            - name: POSTGRES_PORT
+              value: {{ .Values.database.external.port | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.database.external.username | quote }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.database.external.password | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.database.external.name | quote }}
+            - name: DATABASE_URL
+              value: "postgresql://{{ .Values.database.external.username }}:{{ .Values.database.external.password }}@{{ .Values.database.external.host }}:{{ .Values.database.external.port }}/{{ .Values.database.external.name }}?sslmode={{ .Values.database.external.sslMode }}"
+            {{- else }}
+            # Internal database configuration
+            - name: POSTGRES_HOST
+              value: {{ include "blog.postgresql.fullname" . }}
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              value: {{ .Values.database.internal.auth.username | quote }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.database.internal.auth.password | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.database.internal.auth.database | quote }}
+            - name: DATABASE_URL
+              value: "postgresql://{{ .Values.database.internal.auth.username }}:{{ .Values.database.internal.auth.password }}@{{ include "blog.postgresql.fullname" . }}:5432/{{ .Values.database.internal.auth.database }}"
+            {{- end }}
+          volumeMounts:
+            - name: uploads-volume
+              mountPath: /app/app/static/uploads
+            - name: instance-volume
+              mountPath: /app/instance
+          resources:
+            {{- toYaml .Values.app.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: uploads-volume
+          {{- if .Values.volumes.uploads.storageClass }}
+          persistentVolumeClaim:
+            claimName: {{ include "blog.fullname" . }}-uploads
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- if and (eq .Values.database.type "internal") .Values.database.internal.enabled }}
+        # Mount instance volume only when using internal PostgreSQL
+        - name: instance-volume
+          {{- if .Values.volumes.instance.storageClass }}
+          persistentVolumeClaim:
+            claimName: {{ include "blog.fullname" . }}-instance
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- end }}
+      {{- with .Values.app.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.app.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.app.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

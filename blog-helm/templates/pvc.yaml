@@ -1,0 +1,37 @@
+{{- if .Values.volumes.uploads.storageClass -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "blog.fullname" . }}-uploads
+  labels:
+    {{- include "blog.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.volumes.uploads.size | quote }}
+  {{- if .Values.volumes.uploads.storageClass }}
+  storageClassName: {{ .Values.volumes.uploads.storageClass | quote }}
+  {{- end }}
+---
+{{- end -}}
+
+{{- if .Values.volumes.instance.storageClass -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "blog.fullname" . }}-instance
+  labels:
+    {{- include "blog.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.volumes.instance.size | quote }}
+  {{- if .Values.volumes.instance.storageClass }}
+  storageClassName: {{ .Values.volumes.instance.storageClass | quote }}
+  {{- end }}
+---
+{{- end }}

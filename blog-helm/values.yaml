@@ -1,0 +1,109 @@
+# Default values for blog application
+
+# Application settings
+app:
+  name: blog
+  image:
+    repository: your-docker-repo/blog
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 5000
+  env:
+    FLASK_ENV: production
+    DB_TYPE: postgresql
+    SECRET_KEY: your-secret-key-here
+    ADMIN_PASSWORD: admin123
+    POSTS_PER_PAGE: 10
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Database Configuration
+# =====================
+# Configure database connection settings
+#
+# To use an external PostgreSQL database, set 'type' to 'external' and provide connection details
+# To use the built-in PostgreSQL instance, set 'type' to 'internal'
+database:
+  # Database type: 'external' or 'internal'
+  type: internal  # internal or external
+  
+  # Connection settings (used when type: external)
+  external:
+    # Database host address
+    host: "your-external-db-host"
+    # Database port
+    port: 5432
+    # Database user
+    username: "your-db-user"
+    # Database password
+    password: "your-db-password"
+    # Database name
+    name: "your-db-name"
+    # SSL mode (disable, allow, prefer, require, verify-ca, verify-full)
+    sslMode: "prefer"
+
+  # Internal PostgreSQL settings (used when type: internal)
+  internal:
+    # Enable/disable the PostgreSQL server
+    enabled: true
+    # Authentication settings
+    auth:
+      # PostgreSQL admin password
+      postgresPassword: "blog_password"
+      # Database username
+      username: "blog_user"
+      # Database password
+      password: "blog_password"
+      # Database name
+      database: "blog_db"
+    
+    # Persistence settings
+    persistence:
+      # Storage size for PostgreSQL data
+      size: 8Gi
+    
+    # Resource limits
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: blog.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Volume configuration
+volumes:
+  uploads:
+    size: 1Gi
+    storageClass: ""
+  instance:
+    size: 1Gi
+    storageClass: ""
