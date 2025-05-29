@@ -4,9 +4,10 @@
 app:
   name: blog
   image:
-    repository: your-docker-repo/blog
-    tag: latest
-    pullPolicy: IfNotPresent
+    # 로컬 Docker 이미지 사용
+    repository: blog  # 로컬 Docker 이미지 이름
+    tag: latest       # 로컬 Docker 이미지 태그
+    pullPolicy: Never  # 로컬 이미지를 사용하므로 Never로 설정
   replicaCount: 1
   service:
     type: ClusterIP
