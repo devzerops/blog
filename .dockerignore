@@ -41,3 +41,10 @@ instance/
 # OS
 .DS_Store
 Thumbs.db
+
+# extracted files
+*.tar.gz
+*.tar
+*.zip
+*.rar
+*.tarz

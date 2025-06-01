@@ -4,10 +4,9 @@
 app:
   name: blog
   image:
-    # 로컬 Docker 이미지 사용
-    repository: blog  # 로컬 Docker 이미지 이름
-    tag: latest       # 로컬 Docker 이미지 태그
-    pullPolicy: Never  # 로컬 이미지를 사용하므로 Never로 설정
+    repository: harbor.local.devzerops.com/homelab/blog
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
   replicaCount: 1
   service:
     type: ClusterIP
