@@ -9,9 +9,23 @@ from flask_bootstrap import Bootstrap5
 import datetime
 import re
 
+# 서비스 레이어 임포트
+from app.services import (
+    PostService,
+    UserService,
+    CategoryService,
+    MediaService
+)
+
 migrate = Migrate()
 csrf = CSRFProtect()
 bootstrap = Bootstrap5()
+
+# 서비스 레이어 인스턴스 생성
+post_service = PostService()
+user_service = UserService()
+category_service = CategoryService()
+media_service = MediaService()
 
 def strip_images_filter(html_content):
     if html_content is None:
@@ -40,7 +54,18 @@ def create_app(config_class=Config):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(config_class)
 
+    # 확장 초기화
     bootstrap.init_app(app)
+    
+    # 서비스 인스턴스를 애플리케이션 컨텍스트에 등록
+    @app.context_processor
+    def inject_services():
+        return {
+            'post_service': post_service,
+            'user_service': user_service,
+            'category_service': category_service,
+            'media_service': media_service
+        }
 
     app.jinja_env.filters['strip_images'] = strip_images_filter
     app.jinja_env.filters['nl2br'] = nl2br_filter

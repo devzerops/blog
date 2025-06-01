@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from app import create_app, db
-from app.models import User, Post, Category, Comment, SiteSetting, PageView
+from app.models import User, Post, Category, Comment, SiteSetting, PageView, Media
 
 # .env 파일 로드
 load_dotenv()
@@ -17,7 +17,8 @@ def make_shell_context():
         'Category': Category, 
         'Comment': Comment, 
         'SiteSetting': SiteSetting, 
-        'PageView': PageView
+        'PageView': PageView,
+        'Media': Media
     }
 
 # 명령줄에서 초기 설정을 위한 함수 추가

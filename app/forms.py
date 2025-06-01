@@ -40,6 +40,7 @@ class CategoryForm(FlaskForm):
 
 class PostForm(FlaskForm):
     title = StringField('제목', validators=[DataRequired(), Length(min=1, max=200)])
+    excerpt = TextAreaField('요약 (선택 사항)', validators=[Optional(), Length(max=500)])
     content = TextAreaField('내용', validators=[DataRequired()])
     image = FileField('커버 이미지 (선택 사항)')
     alt_text = StringField('이미지 설명 (Alt Text)', validators=[Length(max=200)]) 
