@@ -81,8 +81,14 @@ class PostService:
         if featured_image:
             image_filename = save_cover_image(featured_image)
         
-        # 태그 처리 (쉼표로 구분된 문자열로 저장)
-        tags = ', '.join([t.strip() for t in post_data.get('tags', '').split(',') if t.strip()])
+        # 태그 처리
+        tags_data = post_data.get('tags', [])
+        if isinstance(tags_data, str):
+            # 문자열인 경우 쉼표로 분리
+            tags = ', '.join([t.strip() for t in tags_data.split(',') if t.strip()])
+        else:
+            # 이미 리스트인 경우
+            tags = ', '.join([str(t).strip() for t in tags_data if str(t).strip()])
         
         # 카테고리 처리
         category_id = post_data.get('category_id')
@@ -95,8 +101,9 @@ class PostService:
         post = Post(
             title=post_data['title'],
             content=post_data.get('content', ''),
-            author_id=author_id,
+            user_id=author_id,  # author_id 대신 user_id 사용
             is_published=post_data.get('is_published', False),
+            published_at=post_data.get('published_at'),  # 발행 시간 추가
             category_id=category_id,
             tags=tags,  # 문자열로 저장
             image_filename=image_filename
@@ -128,12 +135,27 @@ class PostService:
                 delete_cover_image(post.image_filename)
             post.image_filename = save_cover_image(featured_image)
         
-        # 태그 업데이트 (쉼표로 구분된 문자열로 저장)
+        # 태그 업데이트
         if 'tags' in post_data:
-            if post_data['tags']:  # tags가 None이 아니고 비어있지 않은 경우에만 처리
-                post.tags = ', '.join([t.strip() for t in post_data['tags'].split(',') if t.strip()])
+            tags_data = post_data['tags']
+            if isinstance(tags_data, str):
+                # 문자열인 경우 쉼표로 분리
+                post.tags = ', '.join([t.strip() for t in tags_data.split(',') if t.strip()])
             else:
-                post.tags = ''
+                    # 이미 리스트인 경우
+                post.tags = ', '.join([str(t).strip() for t in tags_data if str(t).strip()])
+        else:
+            post.tags = ''
+        
+        # 발행 상태 업데이트
+        if 'is_published' in post_data:
+            post.is_published = post_data['is_published']
+            # 발행 상태가 True로 변경되었고, published_at이 설정되지 않은 경우에만 현재 시간으로 설정
+            if post.is_published and not post.published_at:
+                post.published_at = post_data.get('published_at', datetime.utcnow())
+            # 발행 상태가 False로 변경된 경우 published_at을 None으로 설정
+            elif not post.is_published:
+                post.published_at = None
         
         # 카테고리 업데이트
         if 'category_id' in post_data:
@@ -167,7 +189,7 @@ class PostService:
         
         # 이미지 삭제
         if post.image_filename:
-            delete_featured_image(post.image_filename)
+            delete_cover_image(post.image_filename)  # delete_featured_image -> delete_cover_image
         
         # 댓글 삭제
         Comment.query.filter_by(post_id=post_id).delete()

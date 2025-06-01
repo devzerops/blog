@@ -30,10 +30,19 @@ def admin_posts(current_user):
         include_unpublished=True  # 관리자용이므로 미공개 포스트도 포함
     )
     
+    # 페이지네이션 정보를 딕셔너리로 생성
+    pagination = {
+        'page': posts_data['page'],
+        'per_page': posts_data['per_page'],
+        'total': posts_data['total'],
+        'pages': posts_data['pages'],
+        'items': posts_data['items']
+    }
+    
     return render_template('admin/admin_posts_list.html', 
                           title='게시물 관리', 
                           posts=posts_data['items'], 
-                          pagination=posts_data,
+                          pagination=pagination,
                           current_user=current_user)
 
 
@@ -98,16 +107,20 @@ def new_post(current_user):
                 'excerpt': form.excerpt.data or None,
                 'is_published': form.is_published.data,
                 'author_id': current_user.id,
-                'cover_image': cover_image_filename,
-                'meta_title': form.meta_title.data or None,
-                'meta_description': form.meta_description.data or None,
-                'slug': form.slug.data or None,
+                'image_filename': cover_image_filename,  # cover_image -> image_filename
                 'category_id': int(form.category.data) if form.category.data and int(form.category.data) > 0 else None,
-                'tags': form.tags.data.split(',') if form.tags.data else []
+                'tags': form.tags.data if isinstance(form.tags.data, list) else (form.tags.data.split(',') if form.tags.data else [])
             }
             
+            # Handle publishing status
+            if 'publish' in request.form and request.form['publish'] == 'true':
+                post_data['is_published'] = True
+                post_data['published_at'] = datetime.utcnow()
+                current_app.logger.info("새 게시물 발행됨")
+            
             # 서비스 레이어를 사용하여 포스트 생성
-            post = post_service.create_post(post_data)
+            author_id = post_data.pop('author_id')  # author_id를 추출
+            post = post_service.create_post(post_data, author_id=author_id)
             
             flash('글이 성공적으로 작성되었습니다.', 'success')
             return redirect(url_for('admin.admin_posts'))
@@ -145,7 +158,7 @@ def edit_post(current_user, post_id):
         try:
             # Handle file upload if a new image is provided
             cover_image = request.files.get('cover_image')
-            cover_image_filename = post.cover_image
+            cover_image_filename = post.image_filename  # cover_image -> image_filename
             
             if cover_image and cover_image.filename != '':
                 if not allowed_file(cover_image.filename):
@@ -158,8 +171,8 @@ def edit_post(current_user, post_id):
                 
                 try:
                     # Delete old cover image if exists
-                    if post.cover_image:
-                        delete_cover_image(post.cover_image)
+                    if post.image_filename:  # cover_image -> image_filename
+                        delete_cover_image(post.image_filename)  # cover_image -> image_filename
                     
                     # Save new cover image
                     cover_image_filename = save_cover_image(cover_image)
@@ -180,10 +193,9 @@ def edit_post(current_user, post_id):
                 'is_published': form.is_published.data,
                 'meta_title': form.meta_title.data or None,
                 'meta_description': form.meta_description.data or None,
-                'slug': form.slug.data or None,
                 'category_id': int(form.category.data) if form.category.data and int(form.category.data) > 0 else None,
-                'tags': form.tags.data.split(',') if form.tags.data else [],
-                'cover_image': cover_image_filename
+                'tags': form.tags.data if isinstance(form.tags.data, list) else (form.tags.data.split(',') if form.tags.data else []),
+                'image_filename': cover_image_filename  # cover_image -> image_filename
             }
             
             # Handle publishing status
@@ -219,8 +231,8 @@ def edit_post(current_user, post_id):
     # Prepare current image URLs if they exist
     current_image_url = None
     current_thumbnail_url = None
-    if post.cover_image:
-        current_image_url = url_for('static', filename=f'uploads/{post.cover_image}')
+    if post.image_filename:
+        current_image_url = url_for('static', filename=f'uploads/{post.image_filename}')
     
     return render_template('admin/edit_post.html',
                          title='글 수정',

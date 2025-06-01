@@ -43,6 +43,7 @@ class PostForm(FlaskForm):
     excerpt = TextAreaField('요약 (선택 사항)', validators=[Optional(), Length(max=500)])
     content = TextAreaField('내용', validators=[DataRequired()])
     image = FileField('커버 이미지 (선택 사항)')
+    meta_title = StringField('메타 제목 (SEO, 선택 사항)', validators=[Optional(), Length(max=100)])
     alt_text = StringField('이미지 설명 (Alt Text)', validators=[Length(max=200)]) 
     video_embed_url = StringField('동영상 URL (선택 사항)', validators=[Optional(), URLValidator(), Length(max=300)]) 
     tags = StringField('태그 (쉼표로 구분)', validators=[Optional(), Length(max=255)]) 

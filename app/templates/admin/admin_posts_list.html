@@ -79,13 +79,22 @@
                                title="수정">
                                 <i class="bi bi-pencil"></i>
                             </a>
-                            <a href="{{ url_for('main.post', post_id=post.id) }}" 
-                               target="_blank" 
+                            {% if post.is_published %}
+                            <a href="{{ url_for('public.post_detail', post_id=post.id) }}" 
+                               target="_blank"
                                class="btn btn-outline-secondary" 
                                data-bs-toggle="tooltip" 
                                title="미리보기">
                                 <i class="bi bi-eye"></i>
                             </a>
+                            {% else %}
+                            <button class="btn btn-outline-secondary" 
+                                    disabled
+                                    data-bs-toggle="tooltip" 
+                                    title="미리보기는 발행된 게시물에서만 사용 가능합니다.">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            {% endif %}
                             <form action="{{ url_for('admin.delete_post', post_id=post.id) }}" 
                                   method="POST" 
                                   class="d-inline" 
@@ -120,9 +129,10 @@
 <nav aria-label="페이지 네비게이션" class="mt-4">
     <ul class="pagination justify-content-center">
         <!-- 이전 페이지 버튼 -->
-        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+        {% set has_prev = pagination.page > 1 %}
+        <li class="page-item {% if not has_prev %}disabled{% endif %}">
             <a class="page-link" 
-               href="{{ url_for('admin.admin_posts', page=pagination.prev_num) if pagination.has_prev else '#' }}"
+               href="{{ url_for('admin.admin_posts', page=pagination.page-1) if has_prev else '#' }}"
                aria-label="이전">
                 <i class="bi bi-chevron-left"></i>
                 <span class="d-none d-sm-inline">이전</span>
@@ -130,8 +140,21 @@
         </li>
 
         <!-- 페이지 번호 -->
-        {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
-            {% if page_num %}
+        {% set left_edge = 1 %}
+        {% set right_edge = 1 %}
+        {% set left_current = 1 %}
+        {% set right_current = 2 %}
+        
+        {% set last = 0 %}
+        {% for page_num in range(1, pagination.pages + 1) %}
+            {% if (page_num <= left_edge) or 
+                  (page_num > pagination.page - left_current - 1 and page_num < pagination.page + right_current + 1) or 
+                  (page_num > pagination.pages - right_edge) %}
+                {% if last + 1 != page_num %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
                 {% if pagination.page == page_num %}
                     <li class="page-item active" aria-current="page">
                         <span class="page-link">{{ page_num }}</span>
@@ -143,17 +166,15 @@
                         </a>
                     </li>
                 {% endif %}
-            {% else %}
-                <li class="page-item disabled">
-                    <span class="page-link">...</span>
-                </li>
+                {% set last = page_num %}
             {% endif %}
         {% endfor %}
 
         <!-- 다음 페이지 버튼 -->
-        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+        {% set has_next = pagination.page < pagination.pages %}
+        <li class="page-item {% if not has_next %}disabled{% endif %}">
             <a class="page-link" 
-               href="{{ url_for('admin.admin_posts', page=pagination.next_num) if pagination.has_next else '#' }}"
+               href="{{ url_for('admin.admin_posts', page=pagination.page+1) if has_next else '#' }}"
                aria-label="다음">
                 <span class="d-none d-sm-inline">다음</span>
                 <i class="bi bi-chevron-right"></i>
