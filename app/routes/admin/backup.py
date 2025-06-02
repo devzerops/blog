@@ -38,13 +38,24 @@ def export_all_content(current_user):
         posts = Post.query.order_by(Post.created_at.asc()).all()
         for post in posts:
             relative_image_path = None
-            if post.image_filename:  # 이미지 필드가 있는 경우
-                image_filename_only = post.image_filename  # 파일명만 사용
-                source_image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], image_filename_only)
-                if os.path.exists(source_image_path):
-                    # Copy image to temp dir
-                    shutil.copy(source_image_path, images_temp_dir)
-                    relative_image_path = f'images/{image_filename_only}'  # Path within the zip
+            if post.thumbnail_filename:  # 썸네일 이미지 필드가 있는 경우
+                image_filename_only = post.thumbnail_filename  # 파일명만 사용
+                # Check both possible locations for the image
+                possible_paths = [
+                    os.path.join(current_app.config['UPLOAD_FOLDER'], 'thumbnails', image_filename_only),
+                    os.path.join(current_app.config['UPLOAD_FOLDER'], image_filename_only)
+                ]
+                
+                for source_image_path in possible_paths:
+                    if os.path.exists(source_image_path):
+                        # Ensure images directory exists in temp
+                        os.makedirs(images_temp_dir, exist_ok=True)
+                        # Copy image to temp dir
+                        shutil.copy2(source_image_path, os.path.join(images_temp_dir, image_filename_only))
+                        relative_image_path = f'images/{image_filename_only}'  # Path within the zip
+                        break
+                else:
+                    current_app.logger.warning(f"Could not find image file: {image_filename_only}")
             
             post_data = {
                 'id': post.id,
@@ -189,10 +200,30 @@ def data_restore(current_user):
                         )
                         db.session.add(category)
                 
+                # Restore images from backup
+                images_dir = os.path.join(temp_dir, 'images')
+                if os.path.exists(images_dir):
+                    # Create upload directory if it doesn't exist
+                    upload_dir = current_app.config['UPLOAD_FOLDER']
+                    os.makedirs(upload_dir, exist_ok=True)
+                    
+                    # Copy all images from backup to upload directory
+                    for image_file in os.listdir(images_dir):
+                        src_path = os.path.join(images_dir, image_file)
+                        dest_path = os.path.join(upload_dir, image_file)
+                        if not os.path.exists(dest_path):  # Don't overwrite existing files
+                            shutil.copy2(src_path, dest_path)
+                
                 # Restore posts
                 for post_data in data.get('posts', []):
                     # Check if post exists
                     post = Post.query.filter_by(id=post_data.get('id')).first()
+                    
+                    # Handle featured image
+                    featured_image_url = post_data.get('featured_image_url')
+                    thumbnail_filename = None
+                    if featured_image_url and featured_image_url.startswith('images/'):
+                        thumbnail_filename = os.path.basename(featured_image_url)
                     
                     # Parse dates (strip 'Z' suffix if present)
                     created_at = None
@@ -241,24 +272,9 @@ def data_restore(current_user):
                         post.published_at = published_at
                         post.user_id = post_data.get('user_id')  # Note: using user_id not author_id
                         post.category_id = post_data.get('category_id')
-                        post.tags = post_data.get('tags')
-                        if image_filename:
-                            post.image_filename = image_filename
                     else:
                         # Create new post
-                        post = Post(
-                            id=post_data.get('id'),
-                            title=post_data.get('title'),
-                            content=post_data.get('content'),
-                            created_at=created_at,
-                            updated_at=updated_at,
-                            is_published=post_data.get('is_published'),
-                            published_at=published_at,
-                            user_id=post_data.get('user_id'),  # Note: using user_id not author_id
-                            category_id=post_data.get('category_id'),
-                            tags=post_data.get('tags'),
-                            image_filename=image_filename
-                        )
+                        post = Post(**post_dict)
                         db.session.add(post)
                 
                 # Restore comments

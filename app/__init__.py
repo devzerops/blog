@@ -101,9 +101,16 @@ def create_app(config_class=Config):
             'path': request.path,
             'status': response.status_code,
             'ip': request.remote_addr,
-            'user_agent': request.user_agent.string.split(' ')[0],  # 브라우저/클라이언트 정보만 추출
-            'response_size': len(response.get_data())
+            'user_agent': request.user_agent.string.split(' ')[0] if request.user_agent else 'Unknown',  # 브라우저/클라이언트 정보만 추출
+            'response_size': None
         }
+        
+        # 스트리밍 응답이 아닌 경우에만 응답 크기 기록
+        if not response.direct_passthrough:
+            try:
+                log_data['response_size'] = len(response.get_data())
+            except Exception as e:
+                app.logger.warning(f'Failed to get response size: {str(e)}')
         
         # 4xx, 5xx 에러인 경우 WARNING 레벨로 로깅
         if 400 <= response.status_code < 600:

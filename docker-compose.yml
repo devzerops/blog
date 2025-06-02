@@ -34,7 +34,6 @@ services:
     environment:
       - FLASK_APP=run.py
       - FLASK_ENV=development
-      - DB_TYPE=postgresql
       - POSTGRES_USER=blog_user
       - POSTGRES_PASSWORD=blog_password
       - POSTGRES_HOST=db
