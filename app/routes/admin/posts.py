@@ -45,7 +45,6 @@ def new_post(current_user):
     if form.validate_on_submit():
         try:
             # 이미지 파일 처리
-            cover_image_filename = None
             thumbnail_filename = None
             
             # 이미지가 있는지 확인하고 저장
@@ -57,11 +56,15 @@ def new_post(current_user):
                         if hasattr(image, 'seek'):
                             image.seek(0)
                         
-                        # 이미지 저장
-                        cover_image_filename, thumbnail_filename = save_cover_image(image)
+                        # 이미지 저장 (썸네일만 사용)
+                        _, thumbnail_filename = save_cover_image(image)
+                        if not thumbnail_filename:
+                            raise ValueError('이미지 처리에 실패했습니다. 다른 이미지로 시도해주세요.')
+                            
+                        current_app.logger.info(f'썸네일 이미지가 성공적으로 저장되었습니다: {thumbnail_filename}')
                     except Exception as e:
                         current_app.logger.error(f'이미지 저장 중 오류: {str(e)}', exc_info=True)
-                        flash('이미지 처리 중 오류가 발생했습니다. 다른 이미지로 시도해주세요.', 'danger')
+                        flash(f'이미지 처리 중 오류가 발생했습니다: {str(e)}', 'danger')
                         return render_template('admin/edit_post.html',
                                             title='새 글 작성',
                                             form=form,
@@ -73,12 +76,13 @@ def new_post(current_user):
                 'content': form.content.data,
                 'excerpt': form.excerpt.data or None,
                 'is_published': form.is_published.data,
-                'author_id': current_user.id,
-                'image_filename': cover_image_filename,  # cover_image -> image_filename
-                'thumbnail_filename': thumbnail_filename,  # 썸네일 파일명 추가
                 'category_id': int(form.category.data) if form.category.data and int(form.category.data) > 0 else None,
                 'tags': form.tags.data if isinstance(form.tags.data, list) else (form.tags.data.split(',') if form.tags.data else [])
             }
+            
+            # 썸네일 파일명이 있는 경우에만 추가
+            if thumbnail_filename:
+                post_data['thumbnail_filename'] = thumbnail_filename
             
             # Handle publishing status
             if 'publish' in request.form and request.form['publish'] == 'true':
@@ -88,8 +92,7 @@ def new_post(current_user):
             elif 'save_draft' in request.form and request.form['save_draft'] == 'true':
                 post_data['is_published'] = False
             # 서비스 레이어를 사용하여 포스트 생성
-            author_id = post_data.pop('author_id')  # author_id를 추출
-            post = post_service.create_post(post_data, author_id=author_id)
+            post = post_service.create_post(post_data, current_user.id)
             
             flash('글이 성공적으로 작성되었습니다.', 'success')
             return redirect(url_for('admin.dashboard'))
@@ -149,20 +152,29 @@ def edit_post(current_user, post_id):
             # Handle image upload
             image = request.files.get('image')
             if image and hasattr(image, 'filename') and image.filename.strip():
-                # Delete old cover image if exists
-                if post.image_filename:
-                    result = delete_cover_image(post.image_filename)
+                # Delete old thumbnail if exists
+                if post.thumbnail_filename:
+                    result = delete_cover_image(post.thumbnail_filename)
                     if not result['success']:
-                        current_app.logger.error(f"이미지 삭제 실패: {result.get('error', '알 수 없는 오류')}")
+                        current_app.logger.error(f"썸네일 삭제 실패: {result.get('message', '알 수 없는 오류')}")
                 
-                # Save new cover image
-                cover_image_filename, thumbnail_filename = save_cover_image(image)
-                update_data['image_filename'] = cover_image_filename
-                update_data['thumbnail_filename'] = thumbnail_filename
-            else:
-                # Keep old image if no new image is provided
-                update_data['image_filename'] = post.image_filename
-                update_data['thumbnail_filename'] = post.thumbnail_filename if hasattr(post, 'thumbnail_filename') else None
+                # Save new thumbnail (only thumbnail is used now)
+                try:
+                    _, thumbnail_filename = save_cover_image(image)
+                    if not thumbnail_filename:
+                        raise ValueError('이미지 처리에 실패했습니다. 다른 이미지로 시도해주세요.')
+                        
+                    update_data['thumbnail_filename'] = thumbnail_filename
+                    current_app.logger.info(f'새 썸네일 이미지가 성공적으로 저장되었습니다: {thumbnail_filename}')
+                except Exception as e:
+                    current_app.logger.error(f'이미지 저장 중 오류: {str(e)}', exc_info=True)
+                    flash(f'이미지 처리 중 오류가 발생했습니다: {str(e)}', 'danger')
+                    return render_template('admin/edit_post.html',
+                                        title='글 수정',
+                                        form=form,
+                                        post=post,
+                                        current_user=current_user)
+            # No else needed - if no new image, we don't update the thumbnail
             
             # Update the post
             updated_post = post_service.update_post(post.id, update_data)
@@ -184,18 +196,16 @@ def edit_post(current_user, post_id):
         if post.category_id:
             form.category.data = post.category_id
     
-    # Prepare current image URLs if they exist
-    current_image_url = None
+    # Prepare current thumbnail URL if it exists
     current_thumbnail_url = None
-    if post.image_filename:
-        current_image_url = url_for('static', filename=f'uploads/{post.image_filename}')
+    if post.thumbnail_filename:
+        current_thumbnail_url = url_for('static', filename=f'uploads/thumbnails/{post.thumbnail_filename}')
     
     return render_template('admin/edit_post.html',
                          title='글 수정',
                          form=form,
                          post=post,
                          current_user=current_user,
-                         current_image_url=current_image_url,
                          current_thumbnail_url=current_thumbnail_url)
 
 

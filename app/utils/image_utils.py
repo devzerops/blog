@@ -98,147 +98,72 @@ def process_image(img, target_size):
 
 def save_cover_image(form_picture, output_size=(1200, 630), thumbnail_size=(300, 200)):
     """
-    Save the uploaded cover image and generate a thumbnail.
+    Save the uploaded image and generate a thumbnail.
     
     Args:
         form_picture: FileStorage object from Flask
-        output_size: Tuple of (width, height) for the main image
-        thumbnail_size: Tuple of (width, height) for the thumbnail
+        output_size: Tuple (width, height) for the main image (not used, kept for backward compatibility)
+        thumbnail_size: Tuple (width, height) for the thumbnail
         
     Returns:
-        tuple: (image_filename, thumbnail_filename)
-        
-    Raises:
-        ValueError: If the uploaded file is not a valid image
-        OSError: If there's an error processing or saving the image
+        tuple: (None, thumbnail_filename) if successful, (None, None) otherwise
     """
     if not form_picture or not hasattr(form_picture, 'filename') or not form_picture.filename:
-        raise ValueError("업로드할 파일이 없거나 잘못된 파일입니다.")
-    
-    filename = getattr(form_picture, 'filename', 'unknown').strip()
-    if not filename:
-        raise ValueError("유효하지 않은 파일명입니다.")
-        
-    logger.info(f'이미지 처리 시작: {filename}')
-    
-    # 파일 크기 제한 (30MB)
-    max_size = 30 * 1024 * 1024  # 30MB
+        logger.error("No file provided or invalid file object")
+        return None, None
     
     try:
-        # 파일 포인터 위치 확인 및 초기화
-        if not hasattr(form_picture, 'seek'):
-            raise ValueError("파일을 읽을 수 없습니다.")
-            
-        # 파일 크기 확인
-        form_picture.seek(0, 2)  # 파일 끝으로 이동
-        file_size = form_picture.tell()
-        form_picture.seek(0)  # 파일 포인터를 처음으로 되돌림
+        # Validate the uploaded file
+        filename, ext, mime_type = validate_image(form_picture)
+        logger.info(f"이미지 처리 시작: {filename}")
         
-        logger.debug(f'파일 크기: {file_size} bytes')
-        
-        if file_size == 0:
-            raise ValueError("업로드된 파일이 비어 있습니다.")
-            
-        if file_size > max_size:
-            raise ValueError(f"파일 크기가 너무 큽니다. 최대 {max_size//(1024*1024)}MB까지 업로드 가능합니다.")
-        
-        # 파일 확장자 검증
-        allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
-        file_ext = os.path.splitext(filename)[1].lower()
-        
-        if not file_ext or file_ext not in allowed_extensions:
-            raise ValueError(f"지원하지 않는 파일 형식입니다. 허용되는 형식: {', '.join(allowed_extensions)}")
-        
-        # 안전한 파일명 생성
+        # Generate a random filename for the thumbnail
         random_hex = secrets.token_hex(8)
-        image_filename = f"{random_hex}{file_ext}"
-        thumbnail_filename = f"{random_hex}_thumb{file_ext}"
+        thumbnail_filename = f"{random_hex}_thumb{ext}"
         
-        # 디렉토리 설정
-        base_dir = Path(current_app.root_path) / 'static'
-        uploads_dir = base_dir / 'uploads'
-        thumbnails_dir = uploads_dir / 'thumbnails'
+        # Create uploads directory if it doesn't exist (relative to app root)
+        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+        os.makedirs(upload_folder, exist_ok=True)
         
-        # 디렉토리 생성
+        # Create thumbnails directory if it doesn't exist
+        thumbnail_folder = os.path.join(upload_folder, 'thumbnails')
+        os.makedirs(thumbnail_folder, exist_ok=True)
+        
+        thumbnail_path = None
         try:
-            uploads_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
-            thumbnails_dir.mkdir(exist_ok=True, mode=0o755)
-        except OSError as e:
-            logger.error(f'업로드 디렉토리 생성 실패: {str(e)}')
-            raise OSError('파일을 저장할 디렉토리를 생성할 수 없습니다.')
-        
-        image_path = uploads_dir / image_filename
-        thumbnail_path = thumbnails_dir / thumbnail_filename
-        
-        logger.debug(f'이미지 처리 중: {filename} -> {image_path}')
-        
-        # 이미지 처리
-        try:
-            # 이미지 열기 (파일 포인터 초기화)
-            form_picture.seek(0)
-            
             with Image.open(form_picture) as img:
-                # 이미지 형식 확인
-                if img.format not in ['JPEG', 'PNG', 'GIF', 'WEBP']:
-                    raise ValueError(f'지원하지 않는 이미지 형식: {img.format}')
+                # Process and save thumbnail only
+                processed_thumb = process_image(img, thumbnail_size)
+                thumbnail_path = os.path.join(thumbnail_folder, thumbnail_filename)
                 
-                # 메인 이미지 처리 및 저장
-                main_img = process_image(img, output_size)
-                try:
-                    main_img.save(
-                        image_path,
-                        quality=85,
+                # Save thumbnail with optimized settings
+                if img.format == 'PNG':
+                    processed_thumb.save(thumbnail_path, format='PNG', optimize=True, quality=80)
+                else:
+                    processed_thumb.convert('RGB').save(
+                        thumbnail_path,
+                        format='JPEG',
+                        quality=80,
                         optimize=True,
-                        progressive=True if img.format == 'JPEG' else False,
-                        format=img.format
+                        progressive=True
                     )
-                    
-                    # 썸네일 처리 및 저장
-                    thumb_img = process_image(img, thumbnail_size)
-                    try:
-                        thumb_img.save(
-                            thumbnail_path,
-                            quality=80,
-                            optimize=True,
-                            format=img.format
-                        )
-                        
-                        logger.info(f'이미지 저장 완료: {image_filename}, 썸네일: {thumbnail_filename}')
-                        return image_filename, thumbnail_filename
-                        
-                    finally:
-                        thumb_img.close()
-                        
-                finally:
-                    main_img.close()
-                    
-        except Exception as e:
-            # 오류 발생 시 임시 파일 정리
-            logger.error(f'이미지 처리 중 오류: {str(e)}', exc_info=True)
-            for path in [image_path, thumbnail_path]:
-                if path and path.exists():
-                    try:
-                        path.unlink()
-                        logger.debug(f'임시 파일 삭제: {path}')
-                    except OSError as e:
-                        logger.error(f'파일 삭제 실패: {path}, 오류: {str(e)}')
-            
-            # 오류 메시지 구체화
-            error_msg = str(e).lower()
-            if 'truncated' in error_msg:
-                raise ValueError('손상된 이미지 파일입니다. 다른 이미지로 시도해 주세요.')
-            elif 'cannot identify' in error_msg or 'bad image' in error_msg:
-                raise ValueError('지원하지 않는 이미지 형식이거나 손상된 파일입니다.')
-            elif 'image file is truncated' in error_msg:
-                raise ValueError('이미지 파일이 손상되었거나 불완전합니다.')
-            else:
-                raise ValueError(f'이미지 처리 중 오류가 발생했습니다: {str(e)}')
                 
+                logger.debug(f"Thumbnail saved: {thumbnail_path}")
+                return None, thumbnail_filename
+                
+        except Exception as e:
+            logger.error(f"이미지 처리 중 오류: {str(e)}", exc_info=True)
+            # Delete thumbnail if it was created
+            if thumbnail_path and os.path.exists(thumbnail_path):
+                try:
+                    os.remove(thumbnail_path)
+                except Exception as del_err:
+                    logger.error(f'Failed to delete thumbnail: {del_err}')
+            return None, None
+            
     except Exception as e:
-        logger.error(f'이미지 저장 중 치명적 오류: {str(e)}', exc_info=True)
-        if isinstance(e, ValueError) or isinstance(e, OSError):
-            raise e
-        raise ValueError('파일을 처리하는 중 오류가 발생했습니다. 나중에 다시 시도해 주세요.')
+        logger.error(f"이미지 유효성 검사 실패: {str(e)}", exc_info=True)
+        return None, None
     finally:
         # 파일 포인터 초기화 (재사용을 위해)
         if hasattr(form_picture, 'seek'):
@@ -247,14 +172,12 @@ def save_cover_image(form_picture, output_size=(1200, 630), thumbnail_size=(300,
             except Exception as e:
                 logger.warning(f'파일 포인터 초기화 실패: {str(e)}')
 
-def delete_cover_image(image_filename=None, thumbnail_filename=None):
+def delete_cover_image(thumbnail_filename):
     """
-    Delete the cover image and its thumbnail if they exist.
+    Delete the thumbnail image if it exists.
     
     Args:
-        image_filename (str, optional): The filename of the main image to delete
-        thumbnail_filename (str, optional): The filename of the thumbnail to delete.
-                                          If None, will be derived from image_filename.
+        thumbnail_filename (str): The filename of the thumbnail to delete.
     
     Returns:
         dict: {
@@ -265,51 +188,16 @@ def delete_cover_image(image_filename=None, thumbnail_filename=None):
         }
     """
     deleted_files = []
-    
-    if not image_filename and not thumbnail_filename:
-        logger.warning('No filenames provided for deletion')
-        return {
-            'success': False,
-            'deleted_files': [],
-            'message': 'No files were deleted. No filenames provided.'
-        }
+    upload_folder = os.path.join(current_app.root_path, 'static/uploads/thumbnails')
     
     try:
-        # Delete main image if provided
-        if image_filename:
-            try:
-                image_path = Path(current_app.root_path) / 'static' / 'uploads' / image_filename
-                if image_path.is_file():
-                    logger.info(f'Deleting image: {image_path}')
-                    image_path.unlink()
-                    deleted_files.append(str(image_path))
-                    logger.debug(f'Successfully deleted image: {image_path}')
-                else:
-                    logger.warning(f'Image file not found: {image_path}')
-            except Exception as img_error:
-                logger.error(f'Error deleting image {image_path}: {str(img_error)}', exc_info=True)
-                # Continue to try deleting thumbnail even if image deletion fails
-        
-        # Delete thumbnail if provided or can be derived from image_filename
-        thumb_to_delete = thumbnail_filename
-        if not thumb_to_delete and image_filename:
-            # Generate thumbnail filename from image filename
-            name = Path(image_filename).stem
-            ext = Path(image_filename).suffix
-            thumb_to_delete = f"{name}_thumb{ext}"
-        
-        if thumb_to_delete:
-            try:
-                thumb_path = Path(current_app.root_path) / 'static' / 'uploads' / 'thumbnails' / thumb_to_delete
-                if thumb_path.is_file():
-                    logger.info(f'Deleting thumbnail: {thumb_path}')
-                    thumb_path.unlink()
-                    deleted_files.append(str(thumb_path))
-                    logger.debug(f'Successfully deleted thumbnail: {thumb_path}')
-                else:
-                    logger.warning(f'Thumbnail file not found: {thumb_path}')
-            except Exception as thumb_error:
-                logger.error(f'Error deleting thumbnail {thumb_path}: {str(thumb_error)}', exc_info=True)
+        # Delete thumbnail if provided
+        if thumbnail_filename:
+            thumbnail_path = os.path.join(upload_folder, thumbnail_filename)
+            if os.path.exists(thumbnail_path):
+                os.remove(thumbnail_path)
+                deleted_files.append(f"thumbnails/{thumbnail_filename}")
+                logger.info(f"Deleted thumbnail: {thumbnail_filename}")
         
         return {
             'success': True,

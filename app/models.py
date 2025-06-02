@@ -33,7 +33,6 @@ class Post(db.Model):
     created_at = db.Column(db.DateTime, index=True, default=lambda: datetime.now(timezone.utc))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     author = db.relationship('User', backref=db.backref('posts', lazy='dynamic'))
-    image_filename = db.Column(db.String(255), nullable=True)
     thumbnail_filename = db.Column(db.String(255), nullable=True)
     alt_text = db.Column(db.String(200), nullable=True)
     video_embed_url = db.Column(db.String(300), nullable=True)
@@ -49,9 +48,8 @@ class Post(db.Model):
 
     @property
     def image_url(self):
-        if self.image_filename:
-            return f'/static/uploads/{self.image_filename}'
-        return None
+        # 이전 버전과의 호환성을 위해 thumbnail_url을 반환
+        return self.thumbnail_url
 
     @property
     def thumbnail_url(self):

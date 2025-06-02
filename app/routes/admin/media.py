@@ -108,7 +108,7 @@ def image_management(current_user):
         post_data = {
             'id': post.id,
             'title': post.title,
-            'cover_image_url': url_for('static', filename=f'uploads/{post.image_filename}') if post.image_filename else None,
+            'cover_image_url': url_for('static', filename=f'uploads/thumbnails/{post.thumbnail_filename}') if post.thumbnail_filename else None,
             'alt_text': post.alt_text,
             'inline_image_urls': []
         }

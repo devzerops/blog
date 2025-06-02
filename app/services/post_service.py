@@ -76,10 +76,10 @@ class PostService:
         Raises:
             ValueError: 유효하지 않은 카테고리 ID가 전달된 경우
         """
-        # 이미지 저장 로직
-        image_filename = None
+        # 썸네일 저장 로직
+        thumbnail_filename = None
         if featured_image:
-            image_filename = save_cover_image(featured_image)
+            _, thumbnail_filename = save_cover_image(featured_image)
         
         # 태그 처리
         tags_data = post_data.get('tags', [])
@@ -98,17 +98,24 @@ class PostService:
                 raise ValueError("유효하지 않은 카테고리 ID입니다.")
         
         # 포스트 생성
-        post = Post(
-            title=post_data['title'],
-            content=post_data.get('content', ''),
-            user_id=author_id,  # author_id 대신 user_id 사용
-            is_published=post_data.get('is_published', False),
-            published_at=post_data.get('published_at'),  # 발행 시간 추가
-            category_id=category_id,
-            tags=tags,  # 문자열로 저장
-            image_filename=image_filename,
-            thumbnail_filename=post_data.get('thumbnail_filename')  # 썸네일 파일명 추가
-        )
+        post_data_dict = {
+            'title': post_data['title'],
+            'content': post_data.get('content', ''),
+            'user_id': author_id,  # author_id 대신 user_id 사용
+            'is_published': post_data.get('is_published', False),
+            'published_at': post_data.get('published_at'),  # 발행 시간 추가
+            'category_id': category_id,
+            'tags': tags  # 문자열로 저장
+        }
+        
+        # 썸네일 파일명 가져오기 (post_data에서 제거하지 않고 그대로 사용)
+        thumbnail_filename = post_data.get('thumbnail_filename')
+        
+        # 썸네일 파일명이 있는 경우에만 추가
+        if thumbnail_filename:
+            post_data_dict['thumbnail_filename'] = thumbnail_filename
+            
+        post = Post(**post_data_dict)
         db.session.add(post)
         db.session.commit()
         
@@ -131,13 +138,23 @@ class PostService:
         
         # 이미지 업데이트
         if featured_image:
-            # 기존 이미지 삭제
-            if post.image_filename:
-                delete_cover_image(post.image_filename)
-            # 새 이미지 저장 (이미지와 썸네일 모두 생성)
-            image_filename, thumbnail_filename = save_cover_image(featured_image)
-            post.image_filename = image_filename
-            post.thumbnail_filename = thumbnail_filename
+            try:
+                # 기존 썸네일 삭제
+                if post.thumbnail_filename:
+                    delete_cover_image(post.thumbnail_filename)
+                
+                # 새 썸네일 이미지 저장
+                _, thumbnail_filename = save_cover_image(featured_image)
+                if not thumbnail_filename:
+                    raise ValueError('이미지 처리에 실패했습니다. 다른 이미지로 시도해주세요.')
+                
+                # 썸네일 파일명 업데이트
+                post.thumbnail_filename = thumbnail_filename
+                current_app.logger.info(f'썸네일 이미지가 성공적으로 업데이트되었습니다: {thumbnail_filename}')
+                
+            except Exception as e:
+                current_app.logger.error(f'이미지 업데이트 중 오류: {str(e)}', exc_info=True)
+                raise ValueError(f'이미지 업데이트 중 오류가 발생했습니다: {str(e)}')
         
         # 태그 업데이트
         if 'tags' in post_data:
@@ -201,9 +218,9 @@ class PostService:
         """
         post = Post.query.get_or_404(post_id)
         
-        # 이미지 삭제
-        if post.image_filename:
-            delete_cover_image(post.image_filename)  # delete_featured_image -> delete_cover_image
+        # 썸네일 이미지 삭제
+        if post.thumbnail_filename:
+            delete_cover_image(None, post.thumbnail_filename)
         
         # 댓글 삭제
         Comment.query.filter_by(post_id=post_id).delete()
