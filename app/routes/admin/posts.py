@@ -25,31 +25,8 @@ def allowed_file(filename):
 @bp_admin.route('/posts', methods=['GET'])
 @admin_required
 def admin_posts(current_user):
-    """List all blog posts"""
-    page = request.args.get('page', 1, type=int)
-    per_page = 10
-    
-    # 서비스 레이어를 사용하여 포스트 목록 조회
-    posts_data = post_service.get_posts(
-        page=page,
-        per_page=per_page,
-        include_unpublished=True  # 관리자용이므로 미공개 포스트도 포함
-    )
-    
-    # 페이지네이션 정보를 딕셔너리로 생성
-    pagination = {
-        'page': posts_data['page'],
-        'per_page': posts_data['per_page'],
-        'total': posts_data['total'],
-        'pages': posts_data['pages'],
-        'items': posts_data['items']
-    }
-    
-    return render_template('admin/admin_posts_list.html', 
-                          title='게시물 관리', 
-                          posts=posts_data['items'], 
-                          pagination=pagination,
-                          current_user=current_user)
+    """Redirect to admin dashboard"""
+    return redirect(url_for('admin.dashboard'))
 
 
 @bp_admin.route('/post/new', methods=['GET', 'POST'])
