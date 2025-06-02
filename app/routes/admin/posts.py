@@ -62,79 +62,43 @@ def new_post(current_user):
     if form.validate_on_submit():
         try:
             # Handle file upload
-            current_app.logger.info(f'Form data: {request.form}')
-            current_app.logger.info(f'Files received: {request.files}')
-            # 이미지 파일 처리
-            current_app.logger.info('Checking for uploaded files...')
+            current_app.logger.info('이미지 업로드 처리 시작')
+            current_app.logger.debug(f'Form data: {request.form}')
+            current_app.logger.debug(f'Files received: {request.files}')
+            
             image = request.files.get('image')
             cover_image_filename = None
             thumbnail_filename = None
             
-            # 요청의 모든 파일 정보 로깅
-            current_app.logger.info(f'Request files: {request.files}')
-            current_app.logger.info(f'Request form data: {request.form}')
-            current_app.logger.info(f'Request headers: {dict(request.headers)}')
-            
-            if image and hasattr(image, 'filename') and image.filename:
-                current_app.logger.info(f'Processing image: {image.filename}')
-                current_app.logger.info(f'Image object: {image}')
-                current_app.logger.info(
-                    f'Image filename: {image.filename}, '
-                    f'Content-Type: {image.content_type}, '
-                    f'Content-Length: {image.content_length if hasattr(image, "content_length") else "N/A"}'
-                )
-                
-                # 파일 포인터를 처음으로 되돌림
-                if hasattr(image, 'seek'):
-                    image.seek(0, 2)  # 파일 끝으로 이동
-                    file_size = image.tell()
-                    image.seek(0)  # 다시 파일 시작으로 되돌림
-                    current_app.logger.info(f'Actual file size from stream: {file_size} bytes')
-                    
-                    if file_size == 0:
-                        error_msg = '업로드된 파일이 비어 있습니다.'
-                        current_app.logger.warning(error_msg)
-                        flash(error_msg, 'danger')
-                        return render_template('admin/new_post.html', title='New Post', form=form)
-                
-                # 파일이 비어있는지 확인
-                if not image.filename.strip():
-                    current_app.logger.warning('No filename provided or filename is empty')
-                    flash('파일을 선택해주세요.', 'warning')
-                
-                # 파일 크기 확인 (최대 10MB)
-                max_size = 10 * 1024 * 1024  # 10MB
-                if hasattr(image, 'content_length') and image.content_length > max_size:
-                    error_msg = '파일 크기가 너무 큽니다. 10MB 이하의 파일만 업로드 가능합니다.'
-                    current_app.logger.warning(error_msg)
-                    flash(error_msg, 'danger')
-                    return render_template('admin/new_post.html', title='New Post', form=form)
-                
-                # 파일 확장자 확인
-                if '.' not in image.filename:
-                    current_app.logger.warning(f'Invalid filename (no extension): {image.filename}')
-                    flash('유효하지 않은 파일 이름입니다. 확장자가 포함되어야 합니다.', 'warning')
-                    return render_template('admin/new_post.html', title='New Post', form=form)
-                
-                if not allowed_file(image.filename):
-                    error_msg = f'허용되지 않는 파일 형식입니다: {image.filename}. 허용되는 형식: {ALLOWED_EXTENSIONS}'
-                    current_app.logger.warning(error_msg)
-                    flash(error_msg, 'danger')
-                    return render_template('admin/new_post.html', title='New Post', form=form)
-                
+            if image and hasattr(image, 'filename') and image.filename.strip():
                 try:
-                    # 파일 저장 시도
-                    current_app.logger.info('Attempting to save image...')
+                    current_app.logger.info(f'이미지 처리 시작: {image.filename}')
+                    
+                    # 파일 포인터 초기화
+                    if hasattr(image, 'seek'):
+                        image.seek(0)
+                    
+                    # 이미지 저장 시도
+                    current_app.logger.info('이미지 저장 시도 중...')
                     cover_image_filename, thumbnail_filename = save_cover_image(image)
-                    current_app.logger.info(f'Image saved successfully: {cover_image_filename}, Thumbnail: {thumbnail_filename}')
+                    current_app.logger.info(f'이미지 저장 성공: {cover_image_filename}, 썸네일: {thumbnail_filename}')
+                    
                 except Exception as e:
-                    current_app.logger.error(f'Error saving image: {str(e)}', exc_info=True)
-                    flash(f'이미지 저장 중 오류가 발생했습니다: {str(e)}', 'danger')
-                    return render_template('admin/new_post.html', title='New Post', form=form)
+                    current_app.logger.error(f'이미지 저장 중 오류: {str(e)}', exc_info=True)
+                    flash(f'이미지 처리 중 오류가 발생했습니다: {str(e)}', 'danger')
+                    return render_template('admin/edit_post.html', 
+                                         title='새 글 작성', 
+                                         form=form, 
+                                         current_user=current_user)
+                finally:
+                    # 파일 포인터 초기화 (재사용을 위해)
+                    if hasattr(image, 'seek'):
+                        try:
+                            image.seek(0)
+                        except Exception as e:
+                            current_app.logger.warning(f'파일 포인터 초기화 실패: {str(e)}')
             else:
-                current_app.logger.info('No image file was uploaded or image is empty')
-                cover_image_filename = None
-                thumbnail_filename = None
+                current_app.logger.info('이미지 파일이 업로드되지 않았거나 비어있습니다.')
             
             # Prepare post data
             post_data = {
@@ -193,94 +157,57 @@ def edit_post(current_user, post_id):
     
     if form.validate_on_submit():
         try:
-            # Handle file upload
-            current_app.logger.info(f'Edit Post - Form data: {request.form}')
-            current_app.logger.info(f'Edit Post - Files received: {request.files}')
-            
             # 이미지 파일 처리
-            current_app.logger.info('Edit Post - Checking for uploaded files...')
+            current_app.logger.info('이미지 업로드 처리 시작')
             image = request.files.get('image')
+            
+            # 기존 이미지 정보 유지
             cover_image_filename = post.image_filename
             thumbnail_filename = post.thumbnail_filename if hasattr(post, 'thumbnail_filename') else None
             
-            # 요청의 모든 파일 정보 로깅
-            current_app.logger.info(f'Edit Post - Request files: {request.files}')
-            current_app.logger.info(f'Edit Post - Request form data: {request.form}')
-            current_app.logger.info(f'Edit Post - Request headers: {dict(request.headers)}')
-            
-            if image and hasattr(image, 'filename') and image.filename:
-                current_app.logger.info(f'Edit Post - Image object: {image}')
-                current_app.logger.info(f'Edit Post - Image filename: {image.filename}, Content-Type: {image.content_type}, Content-Length: {image.content_length if hasattr(image, "content_length") else "N/A"}')
-                
-                # 파일이 비어있는지 확인
-                if not image.filename.strip():
-                    current_app.logger.warning('Edit Post - No filename provided or filename is empty')
-                    flash('파일을 선택해주세요.', 'warning')
-                
-                # 파일 포인터를 처음으로 되돌림
-                if hasattr(image, 'seek'):
-                    image.seek(0, 2)  # 파일 끝으로 이동
-                    file_size = image.tell()
-                    image.seek(0)  # 다시 파일 시작으로 되돌림
-                    current_app.logger.info(f'Edit Post - Actual file size from stream: {file_size} bytes')
-                    
-                    if file_size == 0:
-                        error_msg = '업로드된 파일이 비어 있습니다.'
-                        current_app.logger.warning(f'Edit Post - {error_msg}')
-                        flash(error_msg, 'danger')
-                        return render_template('admin/edit_post.html', title='글 수정', form=form, post=post, current_user=current_user)
-                
-                # 파일 크기 확인 (최대 10MB)
-                max_size = 10 * 1024 * 1024  # 10MB
-                if hasattr(image, 'content_length') and image.content_length > max_size:
-                    error_msg = '파일 크기가 너무 큽니다. 10MB 이하의 파일만 업로드 가능합니다.'
-                    current_app.logger.warning(f'Edit Post - {error_msg}')
-                    flash(error_msg, 'danger')
-                    return render_template('admin/edit_post.html', title='글 수정', form=form, post=post, current_user=current_user)
-                
-                # 파일 확장자 확인
-                if '.' not in image.filename:
-                    current_app.logger.warning(f'Edit Post - Invalid filename (no extension): {image.filename}')
-                    flash('유효하지 않은 파일 이름입니다. 확장자가 포함되어야 합니다.', 'warning')
-                    return render_template('admin/edit_post.html', title='글 수정', form=form, post=post, current_user=current_user)
-                
-                if not allowed_file(image.filename):
-                    error_msg = f'허용되지 않는 파일 형식입니다: {image.filename}. 허용되는 형식: {ALLOWED_EXTENSIONS}'
-                    current_app.logger.warning(f'Edit Post - {error_msg}')
-                    flash(error_msg, 'danger')
-                    return render_template('admin/edit_post.html', title='글 수정', form=form, post=post, current_user=current_user)
-                
+            if image and hasattr(image, 'filename') and image.filename.strip():
                 try:
-                    current_app.logger.info('Edit Post - Attempting to save new image...')
+                    current_app.logger.info(f'이미지 처리 시작: {image.filename}')
+                    
+                    # 파일 포인터 초기화
+                    if hasattr(image, 'seek'):
+                        image.seek(0)
                     
                     # 기존 이미지 삭제
                     if post.image_filename:
-                        current_app.logger.info(f'Edit Post - Deleting old image: {post.image_filename}')
+                        current_app.logger.info(f'기존 이미지 삭제: {post.image_filename}')
                         result = delete_cover_image(post.image_filename)
                         if not result['success']:
-                            current_app.logger.error(f"Edit Post - Error deleting old images: {result.get('error', 'Unknown error')}")
-                        else:
-                            current_app.logger.info(f"Edit Post - Deleted {len(result['deleted_files'])} files: {', '.join(result['deleted_files'])}")
+                            current_app.logger.error(f"이미지 삭제 실패: {result.get('error', '알 수 없는 오류')}")
                     
                     # 새 이미지 저장
-                    image_filename, thumbnail_filename = save_cover_image(image)
-                    cover_image_filename = image_filename
-                    current_app.logger.info(f'Edit Post - Image saved successfully: {image_filename}, Thumbnail: {thumbnail_filename}')
+                    current_app.logger.info('새 이미지 저장 시도 중...')
+                    cover_image_filename, thumbnail_filename = save_cover_image(image)
+                    current_app.logger.info(f'이미지 저장 성공: {cover_image_filename}, 썸네일: {thumbnail_filename}')
+                    
                 except Exception as e:
-                    current_app.logger.error(f'Edit Post - Error saving image: {str(e)}', exc_info=True)
-                    flash(f'이미지 저장 중 오류가 발생했습니다: {str(e)}', 'danger')
-                    return render_template('admin/edit_post.html', title='글 수정', form=form, post=post, current_user=current_user)
+                    current_app.logger.error(f'이미지 저장 중 오류: {str(e)}', exc_info=True)
+                    flash(f'이미지 처리 중 오류가 발생했습니다: {str(e)}', 'danger')
+                    return render_template('admin/edit_post.html', 
+                                         title='글 수정', 
+                                         form=form, 
+                                         post=post,
+                                         current_user=current_user)
+                finally:
+                    # 파일 포인터 초기화 (재사용을 위해)
+                    if hasattr(image, 'seek'):
+                        try:
+                            image.seek(0)
+                        except Exception as e:
+                            current_app.logger.warning(f'파일 포인터 초기화 실패: {str(e)}')
             else:
-                current_app.logger.info('Edit Post - No new image file was uploaded, keeping existing one')
+                current_app.logger.info('새로운 이미지가 업로드되지 않아 기존 이미지를 유지합니다.')
                 if not image:
-                    current_app.logger.info('Edit Post - No image field in request')
+                    current_app.logger.debug('이미지 필드가 요청에 없습니다.')
                 elif not hasattr(image, 'filename'):
-                    current_app.logger.info('Edit Post - Image field has no filename attribute')
-                elif not image.filename:
-                    current_app.logger.info('Edit Post - Image filename is empty')
-                
-                # 이미지가 없으면 기존 이미지 유지
-                if image and hasattr(image, 'filename') and image.filename:
+                    current_app.logger.debug('이미지 필드에 filename 속성이 없습니다.')
+                elif not image.filename.strip():
+                    current_app.logger.debug('이미지 파일명이 비어 있습니다.')
                     try:
                         # Delete old cover image if exists
                         if post.image_filename:
@@ -332,6 +259,8 @@ def edit_post(current_user, post_id):
                 'content': form.content.data,
                 'excerpt': form.excerpt.data or None,
                 'is_published': is_published,
+                'image_filename': cover_image_filename,
+                'thumbnail_filename': thumbnail_filename,
                 'published_at': published_at,
                 'meta_title': form.meta_title.data or None,
                 'meta_description': form.meta_description.data or None,

@@ -162,14 +162,24 @@ class PostService:
                 post.published_at = None
         
         # 카테고리 업데이트
-        if 'category_id' in post_data:
-            category = Category.query.get(post_data['category_id'])
-            if category:
-                post.category = category
+        if 'category_id' in post_data and post_data['category_id'] is not None:
+            try:
+                category_id = int(post_data['category_id'])
+                if category_id > 0:  # 유효한 카테고리 ID인 경우에만 처리
+                    category = Category.query.get(category_id)
+                    if category:
+                        post.category = category
+                else:
+                    post.category = None  # 0 또는 음수인 경우 카테고리 제거
+            except (ValueError, TypeError):
+                # 유효하지 않은 category_id인 경우 무시
+                current_app.logger.warning(f'Invalid category_id: {post_data["category_id"]}')
+                post.category = None
         
         # 기타 필드 업데이트
-        for field in ['title', 'content', 'is_published', 'meta_description', 'slug']:
-            if field in post_data:
+        for field in ['title', 'content', 'is_published', 'meta_description', 'slug', 
+                    'image_filename', 'thumbnail_filename', 'alt_text', 'video_embed_url']:
+            if field in post_data and post_data[field] is not None:
                 setattr(post, field, post_data[field])
         
         if post.is_published and not post.published_at:

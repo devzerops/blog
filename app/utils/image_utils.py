@@ -115,21 +115,39 @@ def save_cover_image(form_picture, output_size=(1200, 630), thumbnail_size=(300,
     if not form_picture or not hasattr(form_picture, 'filename') or not form_picture.filename:
         raise ValueError("업로드할 파일이 없거나 잘못된 파일입니다.")
     
-    filename = getattr(form_picture, 'filename', 'unknown')
+    filename = getattr(form_picture, 'filename', 'unknown').strip()
+    if not filename:
+        raise ValueError("유효하지 않은 파일명입니다.")
+        
     logger.info(f'이미지 처리 시작: {filename}')
+    
+    # 파일 크기 제한 (30MB)
+    max_size = 30 * 1024 * 1024  # 30MB
     
     try:
         # 파일 포인터 위치 확인 및 초기화
-        if hasattr(form_picture, 'seek'):
-            form_picture.seek(0, 2)  # 파일 끝으로 이동
-            file_size = form_picture.tell()
-            form_picture.seek(0)  # 파일 포인터를 처음으로 되돌림
-            logger.debug(f'파일 크기: {file_size} bytes')
+        if not hasattr(form_picture, 'seek'):
+            raise ValueError("파일을 읽을 수 없습니다.")
+            
+        # 파일 크기 확인
+        form_picture.seek(0, 2)  # 파일 끝으로 이동
+        file_size = form_picture.tell()
+        form_picture.seek(0)  # 파일 포인터를 처음으로 되돌림
         
-        # 파일 확장자 추출
+        logger.debug(f'파일 크기: {file_size} bytes')
+        
+        if file_size == 0:
+            raise ValueError("업로드된 파일이 비어 있습니다.")
+            
+        if file_size > max_size:
+            raise ValueError(f"파일 크기가 너무 큽니다. 최대 {max_size//(1024*1024)}MB까지 업로드 가능합니다.")
+        
+        # 파일 확장자 검증
+        allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
         file_ext = os.path.splitext(filename)[1].lower()
-        if not file_ext:
-            file_ext = '.jpg'  # 기본 확장자
+        
+        if not file_ext or file_ext not in allowed_extensions:
+            raise ValueError(f"지원하지 않는 파일 형식입니다. 허용되는 형식: {', '.join(allowed_extensions)}")
         
         # 안전한 파일명 생성
         random_hex = secrets.token_hex(8)
@@ -156,38 +174,44 @@ def save_cover_image(form_picture, output_size=(1200, 630), thumbnail_size=(300,
         
         # 이미지 처리
         try:
-            # 이미지 열기 (파일 포인터가 올바르게 위치하도록 함)
-            if hasattr(form_picture, 'seek'):
-                form_picture.seek(0)
-                
+            # 이미지 열기 (파일 포인터 초기화)
+            form_picture.seek(0)
+            
             with Image.open(form_picture) as img:
+                # 이미지 형식 확인
+                if img.format not in ['JPEG', 'PNG', 'GIF', 'WEBP']:
+                    raise ValueError(f'지원하지 않는 이미지 형식: {img.format}')
+                
                 # 메인 이미지 처리 및 저장
                 main_img = process_image(img, output_size)
-                main_img.save(
-                    image_path,
-                    quality=85,
-                    optimize=True,
-                    progressive=True,
-                    format=img.format or 'JPEG'
-                )
-                
-                # 썸네일 처리 및 저장
-                thumb_img = process_image(img, thumbnail_size)
-                thumb_img.save(
-                    thumbnail_path,
-                    quality=80,
-                    optimize=True,
-                    format=img.format or 'JPEG'
-                )
-                
-                logger.info(f'이미지 저장 완료: {image_filename}, 썸네일: {thumbnail_filename}')
-                
-                # 메모리 해제
-                main_img.close()
-                thumb_img.close()
-                
-                return image_filename, thumbnail_filename
-                
+                try:
+                    main_img.save(
+                        image_path,
+                        quality=85,
+                        optimize=True,
+                        progressive=True if img.format == 'JPEG' else False,
+                        format=img.format
+                    )
+                    
+                    # 썸네일 처리 및 저장
+                    thumb_img = process_image(img, thumbnail_size)
+                    try:
+                        thumb_img.save(
+                            thumbnail_path,
+                            quality=80,
+                            optimize=True,
+                            format=img.format
+                        )
+                        
+                        logger.info(f'이미지 저장 완료: {image_filename}, 썸네일: {thumbnail_filename}')
+                        return image_filename, thumbnail_filename
+                        
+                    finally:
+                        thumb_img.close()
+                        
+                finally:
+                    main_img.close()
+                    
         except Exception as e:
             # 오류 발생 시 임시 파일 정리
             logger.error(f'이미지 처리 중 오류: {str(e)}', exc_info=True)
@@ -200,18 +224,28 @@ def save_cover_image(form_picture, output_size=(1200, 630), thumbnail_size=(300,
                         logger.error(f'파일 삭제 실패: {path}, 오류: {str(e)}')
             
             # 오류 메시지 구체화
-            if 'truncated' in str(e).lower():
+            error_msg = str(e).lower()
+            if 'truncated' in error_msg:
                 raise ValueError('손상된 이미지 파일입니다. 다른 이미지로 시도해 주세요.')
-            elif 'cannot identify' in str(e).lower():
-                raise ValueError('지원하지 않는 이미지 형식입니다.')
+            elif 'cannot identify' in error_msg or 'bad image' in error_msg:
+                raise ValueError('지원하지 않는 이미지 형식이거나 손상된 파일입니다.')
+            elif 'image file is truncated' in error_msg:
+                raise ValueError('이미지 파일이 손상되었거나 불완전합니다.')
             else:
                 raise ValueError(f'이미지 처리 중 오류가 발생했습니다: {str(e)}')
                 
     except Exception as e:
         logger.error(f'이미지 저장 중 치명적 오류: {str(e)}', exc_info=True)
-        if isinstance(e, ValueError):
+        if isinstance(e, ValueError) or isinstance(e, OSError):
             raise e
         raise ValueError('파일을 처리하는 중 오류가 발생했습니다. 나중에 다시 시도해 주세요.')
+    finally:
+        # 파일 포인터 초기화 (재사용을 위해)
+        if hasattr(form_picture, 'seek'):
+            try:
+                form_picture.seek(0)
+            except Exception as e:
+                logger.warning(f'파일 포인터 초기화 실패: {str(e)}')
 
 def delete_cover_image(image_filename=None, thumbnail_filename=None):
     """
