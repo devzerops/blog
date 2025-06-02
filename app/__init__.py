@@ -16,6 +16,7 @@ from app.services import (
     CategoryService,
     MediaService
 )
+from app.utils import file_utils
 
 migrate = Migrate()
 csrf = CSRFProtect()
@@ -26,6 +27,9 @@ post_service = PostService()
 user_service = UserService()
 category_service = CategoryService()
 media_service = MediaService()
+
+# 유틸리티 인스턴스
+file_util = file_utils
 
 def strip_images_filter(html_content):
     if html_content is None:

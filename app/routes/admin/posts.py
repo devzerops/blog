@@ -3,23 +3,14 @@ Admin post management routes.
 Contains routes for creating, editing, and deleting blog posts.
 """
 
-import os
 from datetime import datetime, timezone
-from flask import render_template, redirect, url_for, flash, request, current_app, url_for
-from werkzeug.utils import secure_filename
+from flask import render_template, redirect, url_for, flash, request, current_app, abort, url_for
 from werkzeug.exceptions import NotFound, BadRequest
 
-from app import post_service, category_service, db
+from app import post_service, category_service, db, file_util
 from app.forms import PostForm
 from app.auth import admin_required, token_required
 from app.routes.admin import bp_admin
-from app.utils.image_utils import save_cover_image, delete_cover_image
-
-# 허용된 파일 확장자
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 @bp_admin.route('/posts', methods=['GET'])
@@ -48,27 +39,22 @@ def new_post(current_user):
             thumbnail_filename = None
             
             # 이미지가 있는지 확인하고 저장
-            if 'image' in request.files:
-                image = request.files['image']
-                if image and image.filename != '' and allowed_file(image.filename):
-                    try:
-                        # 파일 포인터 초기화
-                        if hasattr(image, 'seek'):
-                            image.seek(0)
-                        
-                        # 이미지 저장 (썸네일만 사용)
-                        _, thumbnail_filename = save_cover_image(image)
-                        if not thumbnail_filename:
-                            raise ValueError('이미지 처리에 실패했습니다. 다른 이미지로 시도해주세요.')
-                            
-                        current_app.logger.info(f'썸네일 이미지가 성공적으로 저장되었습니다: {thumbnail_filename}')
-                    except Exception as e:
-                        current_app.logger.error(f'이미지 저장 중 오류: {str(e)}', exc_info=True)
-                        flash(f'이미지 처리 중 오류가 발생했습니다: {str(e)}', 'danger')
-                        return render_template('admin/edit_post.html',
-                                            title='새 글 작성',
-                                            form=form,
-                                            current_user=current_user)
+            if 'image' in request.files and request.files['image'].filename != '':
+                try:
+                    # 파일 업로드 및 썸네일 생성
+                    file_info = file_util.save_uploaded_file(
+                        request.files['image'],
+                        subfolder='thumbnails',
+                        resize=(1200, 630)  # 썸네일 크기 설정
+                    )
+                    thumbnail_filename = file_info['saved_name']
+                except ValueError as e:
+                    flash(str(e), 'danger')
+                    return render_template('admin/edit_post.html',
+                                         title='새 글 작성',
+                                         form=form,
+                                         current_user=current_user,
+                                         current_thumbnail_url=None)
             
             # Prepare post data
             post_data = {
@@ -150,31 +136,30 @@ def edit_post(current_user, post_id):
                 update_data['is_published'] = False
             
             # Handle image upload
-            image = request.files.get('image')
-            if image and hasattr(image, 'filename') and image.filename.strip():
-                # Delete old thumbnail if exists
-                if post.thumbnail_filename:
-                    result = delete_cover_image(post.thumbnail_filename)
-                    if not result['success']:
-                        current_app.logger.error(f"썸네일 삭제 실패: {result.get('message', '알 수 없는 오류')}")
-                
-                # Save new thumbnail (only thumbnail is used now)
+            if 'image' in request.files and request.files['image'].filename != '':
                 try:
-                    _, thumbnail_filename = save_cover_image(image)
-                    if not thumbnail_filename:
-                        raise ValueError('이미지 처리에 실패했습니다. 다른 이미지로 시도해주세요.')
-                        
-                    update_data['thumbnail_filename'] = thumbnail_filename
-                    current_app.logger.info(f'새 썸네일 이미지가 성공적으로 저장되었습니다: {thumbnail_filename}')
-                except Exception as e:
-                    current_app.logger.error(f'이미지 저장 중 오류: {str(e)}', exc_info=True)
-                    flash(f'이미지 처리 중 오류가 발생했습니다: {str(e)}', 'danger')
+                    # Delete old thumbnail if exists
+                    if post.thumbnail_filename:
+                        if not file_util.delete_uploaded_file(post.thumbnail_filename, subfolder='thumbnails'):
+                            current_app.logger.error("기존 썸네일 삭제에 실패했습니다.")
+                    
+                    # Upload new thumbnail
+                    file_info = file_util.save_uploaded_file(
+                        request.files['image'],
+                        subfolder='thumbnails',
+                        resize=(1200, 630)  # 썸네일 크기 설정
+                    )
+                    update_data['thumbnail_filename'] = file_info['saved_name']
+                except ValueError as e:
+                    flash(str(e), 'danger')
                     return render_template('admin/edit_post.html',
-                                        title='글 수정',
-                                        form=form,
-                                        post=post,
-                                        current_user=current_user)
-            # No else needed - if no new image, we don't update the thumbnail
+                                         title='글 수정',
+                                         form=form,
+                                         post=post,
+                                         current_user=current_user,
+                                         current_thumbnail_url=url_for('static', 
+                                                                    filename=f'uploads/thumbnails/{post.thumbnail_filename}') 
+                                                                    if post.thumbnail_filename else None)
             
             # Update the post
             updated_post = post_service.update_post(post.id, update_data)
