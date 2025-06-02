@@ -5,6 +5,11 @@
 {% block main_container_class %}container-fluid{% endblock %}
 
 {% block head_extra %}
+    <!-- 캐시 방지 메타 태그 추가 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <!-- 인증 토큰과 CSRF 토큰을 전역 변수로 정의 -->
     <script>
         // 인증 토큰과 CSRF 토큰을 전역변수로 정의
@@ -232,7 +237,7 @@
 
 {% block content %}
 <div class="container-fluid mt-4">
-    <form method="POST" enctype="multipart/form-data">
+    <form method="POST" enctype="multipart/form-data" autocomplete="off" id="postForm">
         {{ form.hidden_tag() }}
         <div class="row">
             <!-- Main Content Column -->
@@ -559,7 +564,18 @@
         }
     });
     
-    // 전역 변수로 정의된 window.ADMIN_TOKEN 사용
+    // 폼에 타임스탬프 추가하여 캐시 방지
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('postForm');
+        if (form) {
+            form.action = window.location.pathname + '?t=' + new Date().getTime();
+        }
+    });
+
+    // 뒤로가기/앞으로가기로 페이지가 로드된 경우 강제 새로고침
+    if (window.performance && performance.navigation.type === 2) {
+        window.location.href = window.location.pathname + '?t=' + new Date().getTime();
+    }
 
     document.addEventListener('DOMContentLoaded', function() {
         const contentElement = document.getElementById('content');
