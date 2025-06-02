@@ -32,6 +32,35 @@ def dashboard(current_user):
         else:
             post.formatted_date = 'N/A'
     
+    # Get filter parameters
+    category_id = request.args.get('category_id', type=int)
+    status = request.args.get('status')
+    
+    # Build base query
+    query = Post.query
+    
+    # Apply filters
+    if category_id:
+        query = query.filter(Post.category_id == category_id)
+    
+    if status == 'published':
+        query = query.filter(Post.is_published == True)
+    elif status == 'draft':
+        query = query.filter(Post.is_published == False)
+    
+    # Order and paginate
+    posts_pagination = query.order_by(Post.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    posts = posts_pagination.items
+    
+    # Format date for display
+    for post in posts:
+        if post.created_at:
+            post.formatted_date = post.created_at.strftime('%Y-%m-%d %H:%M')
+        else:
+            post.formatted_date = 'N/A'
+    
     # Get all categories for filter dropdown
     categories = Category.query.order_by(Category.name).all()
     
@@ -40,5 +69,7 @@ def dashboard(current_user):
         posts=posts, 
         pagination=posts_pagination, 
         current_user=current_user,
-        categories=categories
+        categories=categories,
+        selected_category_id=category_id,
+        selected_status=status
     )
