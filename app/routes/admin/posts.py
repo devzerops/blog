@@ -4,7 +4,7 @@ Contains routes for creating, editing, and deleting blog posts.
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import render_template, redirect, url_for, flash, request, current_app, url_for
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import NotFound, BadRequest
@@ -43,62 +43,29 @@ def new_post(current_user):
     
     # Process form submission
     if form.validate_on_submit():
-        current_app.logger.info(f"[new_post] Raw form data: {request.form}")
-        current_app.logger.info(f"[new_post] Form data: title={form.title.data}, content length={len(form.content.data) if form.content.data else 0}")
-        
-        # 수동으로 content 필드 검증
-        if not form.content.data or not form.content.data.strip():
-            current_app.logger.error("[new_post] Content is empty")
-            form.content.errors.append('내용을 입력해주세요.')
-            return render_template('admin/edit_post.html', title='New Post', form=form, legend='New Post', current_user=current_user)
-        
-        # 폼 유효성 검증 실패 시 오류 로깅
-        if not form.validate_on_submit():
-            for field, errors in form.errors.items():
-                current_app.logger.error(f"[new_post] Field {field} failed validation with errors: {errors}")
-            return render_template('admin/edit_post.html', title='New Post', form=form, legend='New Post', current_user=current_user)
-    
-    # 폼 검증 성공
-    if form.validate_on_submit():
         try:
-            # Handle file upload
-            current_app.logger.info('이미지 업로드 처리 시작')
-            current_app.logger.debug(f'Form data: {request.form}')
-            current_app.logger.debug(f'Files received: {request.files}')
-            
-            image = request.files.get('image')
+            # 이미지 파일 처리
             cover_image_filename = None
             thumbnail_filename = None
             
-            if image and hasattr(image, 'filename') and image.filename.strip():
-                try:
-                    current_app.logger.info(f'이미지 처리 시작: {image.filename}')
-                    
-                    # 파일 포인터 초기화
-                    if hasattr(image, 'seek'):
-                        image.seek(0)
-                    
-                    # 이미지 저장 시도
-                    current_app.logger.info('이미지 저장 시도 중...')
-                    cover_image_filename, thumbnail_filename = save_cover_image(image)
-                    current_app.logger.info(f'이미지 저장 성공: {cover_image_filename}, 썸네일: {thumbnail_filename}')
-                    
-                except Exception as e:
-                    current_app.logger.error(f'이미지 저장 중 오류: {str(e)}', exc_info=True)
-                    flash(f'이미지 처리 중 오류가 발생했습니다: {str(e)}', 'danger')
-                    return render_template('admin/edit_post.html', 
-                                         title='새 글 작성', 
-                                         form=form, 
-                                         current_user=current_user)
-                finally:
-                    # 파일 포인터 초기화 (재사용을 위해)
-                    if hasattr(image, 'seek'):
-                        try:
+            # 이미지가 있는지 확인하고 저장
+            if 'image' in request.files:
+                image = request.files['image']
+                if image and image.filename != '' and allowed_file(image.filename):
+                    try:
+                        # 파일 포인터 초기화
+                        if hasattr(image, 'seek'):
                             image.seek(0)
-                        except Exception as e:
-                            current_app.logger.warning(f'파일 포인터 초기화 실패: {str(e)}')
-            else:
-                current_app.logger.info('이미지 파일이 업로드되지 않았거나 비어있습니다.')
+                        
+                        # 이미지 저장
+                        cover_image_filename, thumbnail_filename = save_cover_image(image)
+                    except Exception as e:
+                        current_app.logger.error(f'이미지 저장 중 오류: {str(e)}', exc_info=True)
+                        flash('이미지 처리 중 오류가 발생했습니다. 다른 이미지로 시도해주세요.', 'danger')
+                        return render_template('admin/edit_post.html',
+                                            title='새 글 작성',
+                                            form=form,
+                                            current_user=current_user)
             
             # Prepare post data
             post_data = {
@@ -116,9 +83,10 @@ def new_post(current_user):
             # Handle publishing status
             if 'publish' in request.form and request.form['publish'] == 'true':
                 post_data['is_published'] = True
-                post_data['published_at'] = datetime.utcnow()
-                current_app.logger.info("새 게시물 발행됨")
-            
+                post_data['published_at'] = datetime.now(timezone.utc)
+                # 게시물 초안 저장
+            elif 'save_draft' in request.form and request.form['save_draft'] == 'true':
+                post_data['is_published'] = False
             # 서비스 레이어를 사용하여 포스트 생성
             author_id = post_data.pop('author_id')  # author_id를 추출
             post = post_service.create_post(post_data, author_id=author_id)
@@ -157,120 +125,46 @@ def edit_post(current_user, post_id):
     
     if form.validate_on_submit():
         try:
-            # 이미지 파일 처리
-            current_app.logger.info('이미지 업로드 처리 시작')
-            image = request.files.get('image')
-            
-            # 기존 이미지 정보 유지
-            cover_image_filename = post.image_filename
-            thumbnail_filename = post.thumbnail_filename if hasattr(post, 'thumbnail_filename') else None
-            
-            if image and hasattr(image, 'filename') and image.filename.strip():
-                try:
-                    current_app.logger.info(f'이미지 처리 시작: {image.filename}')
-                    
-                    # 파일 포인터 초기화
-                    if hasattr(image, 'seek'):
-                        image.seek(0)
-                    
-                    # 기존 이미지 삭제
-                    if post.image_filename:
-                        current_app.logger.info(f'기존 이미지 삭제: {post.image_filename}')
-                        result = delete_cover_image(post.image_filename)
-                        if not result['success']:
-                            current_app.logger.error(f"이미지 삭제 실패: {result.get('error', '알 수 없는 오류')}")
-                    
-                    # 새 이미지 저장
-                    current_app.logger.info('새 이미지 저장 시도 중...')
-                    cover_image_filename, thumbnail_filename = save_cover_image(image)
-                    current_app.logger.info(f'이미지 저장 성공: {cover_image_filename}, 썸네일: {thumbnail_filename}')
-                    
-                except Exception as e:
-                    current_app.logger.error(f'이미지 저장 중 오류: {str(e)}', exc_info=True)
-                    flash(f'이미지 처리 중 오류가 발생했습니다: {str(e)}', 'danger')
-                    return render_template('admin/edit_post.html', 
-                                         title='글 수정', 
-                                         form=form, 
-                                         post=post,
-                                         current_user=current_user)
-                finally:
-                    # 파일 포인터 초기화 (재사용을 위해)
-                    if hasattr(image, 'seek'):
-                        try:
-                            image.seek(0)
-                        except Exception as e:
-                            current_app.logger.warning(f'파일 포인터 초기화 실패: {str(e)}')
-            else:
-                current_app.logger.info('새로운 이미지가 업로드되지 않아 기존 이미지를 유지합니다.')
-                if not image:
-                    current_app.logger.debug('이미지 필드가 요청에 없습니다.')
-                elif not hasattr(image, 'filename'):
-                    current_app.logger.debug('이미지 필드에 filename 속성이 없습니다.')
-                elif not image.filename.strip():
-                    current_app.logger.debug('이미지 파일명이 비어 있습니다.')
-                    try:
-                        # Delete old cover image if exists
-                        if post.image_filename:
-                            current_app.logger.info(f'Deleting old image: {post.image_filename}')
-                            delete_cover_image(post.image_filename)
-                        
-                        # Save new cover image
-                        current_app.logger.info('Saving new cover image...')
-                        image_filename, thumbnail_filename = save_cover_image(image)
-                        current_app.logger.info(f'New image saved successfully. Filename: {image_filename}, Thumbnail: {thumbnail_filename}')
-                        cover_image_filename = image_filename
-                    except Exception as e:
-                        current_app.logger.error(f'Error updating cover image: {e}')
-                        flash('커버 이미지 업데이트 중 오류가 발생했습니다.', 'danger')
-                        return render_template('admin/edit_post.html', 
-                                             title='글 수정',
-                                             form=form, 
-                                             post=post,
-                                             current_user=current_user)
-                else:
-                    # 이미지가 없으면 기존 이미지 유지
-                    cover_image_filename = post.image_filename
-                    thumbnail_filename = post.thumbnail_filename if hasattr(post, 'thumbnail_filename') else None
-                    current_app.logger.info('No new image provided, keeping existing image')
-            
-            # Handle publishing status
-            is_published = post.is_published
-            published_at = post.published_at
-            
-            # 게시 상태 변경 처리
-            if 'save_draft' in request.form and request.form['save_draft'] == 'true':
-                # 초안 저장 버튼 클릭 시
-                is_published = False
-                current_app.logger.info("게시물 상태: 초안으로 저장")
-            elif 'publish' in request.form and request.form['publish'] == 'true':
-                # 발행 버튼 클릭 시
-                is_published = True
-                if not post.published_at:  # 처음 발행되는 경우에만 발행일 업데이트
-                    published_at = datetime.utcnow()
-                current_app.logger.info("게시물 상태: 발행됨")
-            elif 'unpublish' in request.form and request.form['unpublish'] == 'true':
-                # 발행 취소 버튼 클릭 시
-                is_published = False
-                current_app.logger.info("게시물 상태: 초안으로 변경")
-            
-            # Prepare update data
+            # Get the post data
             update_data = {
                 'title': form.title.data,
                 'content': form.content.data,
                 'excerpt': form.excerpt.data or None,
-                'is_published': is_published,
-                'image_filename': cover_image_filename,
-                'thumbnail_filename': thumbnail_filename,
-                'published_at': published_at,
                 'meta_title': form.meta_title.data or None,
                 'meta_description': form.meta_description.data or None,
                 'category_id': int(form.category.data) if form.category.data and int(form.category.data) > 0 else None,
                 'tags': form.tags.data if isinstance(form.tags.data, list) else (form.tags.data.split(',') if form.tags.data else []),
-                'image_filename': cover_image_filename,
-                'thumbnail_filename': thumbnail_filename
             }
             
-            # 서비스 레이어를 사용하여 포스트 업데이트
+            # Handle publishing status
+            if 'save_draft' in request.form:
+                update_data['is_published'] = False
+            elif 'publish' in request.form:
+                update_data['is_published'] = True
+                if not post.published_at:  # First time publishing
+                    update_data['published_at'] = datetime.now(timezone.utc)
+            elif 'unpublish' in request.form:
+                update_data['is_published'] = False
+            
+            # Handle image upload
+            image = request.files.get('image')
+            if image and hasattr(image, 'filename') and image.filename.strip():
+                # Delete old cover image if exists
+                if post.image_filename:
+                    result = delete_cover_image(post.image_filename)
+                    if not result['success']:
+                        current_app.logger.error(f"이미지 삭제 실패: {result.get('error', '알 수 없는 오류')}")
+                
+                # Save new cover image
+                cover_image_filename, thumbnail_filename = save_cover_image(image)
+                update_data['image_filename'] = cover_image_filename
+                update_data['thumbnail_filename'] = thumbnail_filename
+            else:
+                # Keep old image if no new image is provided
+                update_data['image_filename'] = post.image_filename
+                update_data['thumbnail_filename'] = post.thumbnail_filename if hasattr(post, 'thumbnail_filename') else None
+            
+            # Update the post
             updated_post = post_service.update_post(post.id, update_data)
             
             if not updated_post:
@@ -283,7 +177,7 @@ def edit_post(current_user, post_id):
             db.session.rollback()
             current_app.logger.error(f'Error updating post: {e}')
             flash('글 수정 중 오류가 발생했습니다. 나중에 다시 시도해주세요.', 'danger')
-    
+
     # For GET request, populate form fields
     if request.method == 'GET':
         form.tags.data = post.tags

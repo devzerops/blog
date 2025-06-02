@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from flask_migrate import Migrate
 from markupsafe import Markup
 from config import Config
@@ -56,60 +56,64 @@ def create_app(config_class=Config):
     from logging.handlers import RotatingFileHandler
     import os
     
-    # 로그 디렉토리 생성
-    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir, exist_ok=True)
+    # Flask 애플리케이션 초기화
+    app = Flask(__name__, instance_relative_config=True)
+    app.config.from_object(config_class())
     
-    # 파일 핸들러 설정 (최대 10MB, 5개 백업)
-    file_handler = RotatingFileHandler(
-        os.path.join(log_dir, 'app.log'),
-        maxBytes=1024 * 1024 * 10,  # 10MB
-        backupCount=5,
-        encoding='utf-8'
-    )
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-    ))
+    # 로깅 설정 - 기본 로그 레벨 설정
+    app.logger.setLevel(logging.INFO)
+    
+    # 기존 핸들러 제거
+    for handler in app.logger.handlers[:]:
+        app.logger.removeHandler(handler)
     
     # 콘솔 핸들러 설정
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.DEBUG)
-    console_handler.setFormatter(logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-    ))
     
-    # 애플리케이션 로거 설정
-    app = Flask(__name__, instance_relative_config=True)
-    app.config.from_object(config_class)
+    # 로그 포맷 설정 (CLF - Common Log Format)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s: %(message)s')
+    console_handler.setFormatter(formatter)
     
-    # 기본 로거 레벨 설정
-    app.logger.setLevel(logging.DEBUG)
+    # 핸들러 추가
+    app.logger.addHandler(console_handler)
     
-    # 핸들러 추가 (중복 방지)
-    if not app.debug and not any(isinstance(h, logging.handlers.RotatingFileHandler) for h in app.logger.handlers):
-        app.logger.addHandler(file_handler)
+    # 서드파티 로거 레벨 설정 (에러만 표시)
+    logging.getLogger('sqlalchemy.engine').setLevel(logging.ERROR)
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
+    logging.getLogger('PIL').setLevel(logging.ERROR)
+    logging.getLogger('urllib3').setLevel(logging.ERROR)
+    logging.getLogger('markdown').setLevel(logging.ERROR)
     
-    if not any(isinstance(h, logging.StreamHandler) for h in app.logger.handlers):
-        app.logger.addHandler(console_handler)
+    # HTTP 요청/응답 로깅 미들웨어
+    @app.after_request
+    def log_request(response):
+        # 정적 파일 요청은 로깅에서 제외
+        if request.path.startswith('/static/'):
+            return response
+            
+        # 로그 메시지 구성
+        log_data = {
+            'method': request.method,
+            'path': request.path,
+            'status': response.status_code,
+            'ip': request.remote_addr,
+            'user_agent': request.user_agent.string.split(' ')[0],  # 브라우저/클라이언트 정보만 추출
+            'response_size': len(response.get_data())
+        }
+        
+        # 4xx, 5xx 에러인 경우 WARNING 레벨로 로깅
+        if 400 <= response.status_code < 600:
+            app.logger.warning('HTTP Request: %s', log_data)
+        else:
+            app.logger.info('HTTP Request: %s', log_data)
+            
+        return response
     
-    # SQLAlchemy 로거 설정
-    sql_logger = logging.getLogger('sqlalchemy.engine')
-    sql_logger.setLevel(logging.INFO)
-    sql_logger.addHandler(console_handler)
-    
+    # 애플리케이션 시작 로그
     app.logger.info('애플리케이션이 시작되었습니다.')
-
+    
     # 확장 초기화
     bootstrap.init_app(app)
-    
-    # 로깅 테스트
-    app.logger.debug('디버그 메시지')
-    app.logger.info('정보 메시지')
-    app.logger.warning('경고 메시지')
-    app.logger.error('에러 메시지')
-    app.logger.critical('심각한 에러 메시지')
     
     # 서비스 인스턴스를 애플리케이션 컨텍스트에 등록
     @app.context_processor
