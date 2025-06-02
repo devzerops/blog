@@ -1,12 +1,24 @@
 import os
 from dotenv import load_dotenv
+import logging
 from app import create_app, db
 from app.models import User, Post, Category, Comment, SiteSetting, PageView, Media
+
+# 로깅 설정
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 # .env 파일 로드
 load_dotenv()
 
 app = create_app()
+
+# Flask 앱 로거 설정
+app.logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+handler.setLevel(logging.DEBUG)
+app.logger.addHandler(handler)
 
 @app.shell_context_processor
 def make_shell_context():

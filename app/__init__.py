@@ -51,11 +51,65 @@ def mask_ip_filter(ip_address_str):
     return "Invalid IP" # Fallback for unexpected format
 
 def create_app(config_class=Config):
+    # 로깅 설정
+    import logging
+    from logging.handlers import RotatingFileHandler
+    import os
+    
+    # 로그 디렉토리 생성
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir, exist_ok=True)
+    
+    # 파일 핸들러 설정 (최대 10MB, 5개 백업)
+    file_handler = RotatingFileHandler(
+        os.path.join(log_dir, 'app.log'),
+        maxBytes=1024 * 1024 * 10,  # 10MB
+        backupCount=5,
+        encoding='utf-8'
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    ))
+    
+    # 콘솔 핸들러 설정
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    console_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    ))
+    
+    # 애플리케이션 로거 설정
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(config_class)
+    
+    # 기본 로거 레벨 설정
+    app.logger.setLevel(logging.DEBUG)
+    
+    # 핸들러 추가 (중복 방지)
+    if not app.debug and not any(isinstance(h, logging.handlers.RotatingFileHandler) for h in app.logger.handlers):
+        app.logger.addHandler(file_handler)
+    
+    if not any(isinstance(h, logging.StreamHandler) for h in app.logger.handlers):
+        app.logger.addHandler(console_handler)
+    
+    # SQLAlchemy 로거 설정
+    sql_logger = logging.getLogger('sqlalchemy.engine')
+    sql_logger.setLevel(logging.INFO)
+    sql_logger.addHandler(console_handler)
+    
+    app.logger.info('애플리케이션이 시작되었습니다.')
 
     # 확장 초기화
     bootstrap.init_app(app)
+    
+    # 로깅 테스트
+    app.logger.debug('디버그 메시지')
+    app.logger.info('정보 메시지')
+    app.logger.warning('경고 메시지')
+    app.logger.error('에러 메시지')
+    app.logger.critical('심각한 에러 메시지')
     
     # 서비스 인스턴스를 애플리케이션 컨텍스트에 등록
     @app.context_processor

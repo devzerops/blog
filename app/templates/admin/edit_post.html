@@ -858,8 +858,24 @@
                         // 파일 업로드 필드 처리
                         const fileInput = postForm.querySelector('input[type="file"][name="image"]');
                         if (fileInput && fileInput.files.length > 0) {
-                            console.log('Adding cover image to form data:', fileInput.files[0].name);
-                            formData.append('image', fileInput.files[0]);
+                            const file = fileInput.files[0];
+                            console.log('Adding cover image to form data:', file.name, ', size:', file.size, 'bytes, type:', file.type);
+                            
+                            // 파일 크기 검증 (예: 10MB 제한)
+                            const maxSize = 10 * 1024 * 1024; // 10MB
+                            if (file.size > maxSize) {
+                                alert('파일 크기가 너무 큽니다. 10MB 이하의 파일만 업로드 가능합니다.');
+                                return false;
+                            }
+                            
+                            // 파일 타입 검증
+                            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                            if (!allowedTypes.includes(file.type.toLowerCase())) {
+                                alert('허용되지 않는 파일 형식입니다. 이미지 파일(jpg, png, gif, webp)만 업로드 가능합니다.');
+                                return false;
+                            }
+                            
+                            formData.append('image', file);
                         } else {
                             console.log('이미지 파일이 첨부되지 않았습니다.');
                         }
@@ -909,6 +925,7 @@
                 // 폼 제출 이벤트 핸들러
                 postForm.addEventListener('submit', function(e) {
                     console.log('폼 제출 이벤트 발생');
+                    e.preventDefault(); // 기본 폼 제출 방지
                     
                     // 에디터 내용을 textarea에 복사
                     const editorData = editor.getData();
@@ -921,13 +938,19 @@
                     // 내용이 비어있는 경우 폼 제출 방지
                     if (!editorData.trim()) {
                         console.log('내용이 비어있음');
-                        e.preventDefault();
                         alert('내용을 입력해주세요.');
                         return false;
                     }
                     
-                    console.log('폼 제출 진행');
-                    return true;
+                    // 제출 버튼 찾기
+                    const submitButton = document.activeElement;
+                    if (submitButton && submitButton.type === 'submit') {
+                        console.log('수동으로 폼 제출 처리');
+                        submitPostForm(submitButton.name, submitButton.value);
+                    } else {
+                        console.log('기본 제출 버튼 사용');
+                        submitPostForm('publish', 'true');
+                    }
                 });
                 
                 // 제출 버튼 클릭 이벤트 핸들러

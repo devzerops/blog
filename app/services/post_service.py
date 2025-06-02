@@ -106,7 +106,8 @@ class PostService:
             published_at=post_data.get('published_at'),  # 발행 시간 추가
             category_id=category_id,
             tags=tags,  # 문자열로 저장
-            image_filename=image_filename
+            image_filename=image_filename,
+            thumbnail_filename=post_data.get('thumbnail_filename')  # 썸네일 파일명 추가
         )
         db.session.add(post)
         db.session.commit()
@@ -133,7 +134,10 @@ class PostService:
             # 기존 이미지 삭제
             if post.image_filename:
                 delete_cover_image(post.image_filename)
-            post.image_filename = save_cover_image(featured_image)
+            # 새 이미지 저장 (이미지와 썸네일 모두 생성)
+            image_filename, thumbnail_filename = save_cover_image(featured_image)
+            post.image_filename = image_filename
+            post.thumbnail_filename = thumbnail_filename
         
         # 태그 업데이트
         if 'tags' in post_data:
