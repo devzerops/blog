@@ -38,6 +38,9 @@ def site_stats(current_user):
     total_posts = db.session.query(func.count(Post.id)).scalar()
     published_posts = db.session.query(func.count(Post.id)).filter(Post.is_published == True).scalar()
     
+    # Calculate total post views (sum of views from all posts)
+    total_post_views = db.session.query(func.coalesce(func.sum(Post.views), 0)).scalar()
+    
     # Get most viewed posts
     most_viewed_posts = db.session.query(
         Post, func.count(PageView.id).label('views')
@@ -85,6 +88,7 @@ def site_stats(current_user):
                            total_comments=total_comments,
                            total_posts=total_posts,
                            published_posts=published_posts,
+                           total_post_views=total_post_views,
                            most_viewed_posts=most_viewed_posts,
                            most_commented_posts=most_commented_posts,
                            visitor_trend=visitor_trend,

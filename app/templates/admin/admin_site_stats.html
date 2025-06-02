@@ -10,7 +10,7 @@
     <p>현재 사이트의 주요 활동 지표입니다.</p>
 
     <div class="row mt-4">
-        <div class="col-md-4 mb-3">
+        <div class="col-md-3 mb-3">
             <div class="card text-white bg-primary h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -23,7 +23,20 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4 mb-3">
+        <div class="col-md-3 mb-3">
+            <div class="card text-white h-100" style="background-color: #6f42c1;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title mb-0">게시판 총 조회수</h5>
+                            <p class="card-text fs-2 fw-bold">{{ "{:,}".format(total_post_views|default(0)) }}</p>
+                        </div>
+                        <i class="bi bi-eye-fill fs-1 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
             <div class="card text-white bg-success h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -36,14 +49,14 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4 mb-3">
+        <div class="col-md-3 mb-3">
             <div class="card text-dark bg-warning h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="card-title mb-0">현재 활동 중 사용자 (추정)</h5>
                             <p class="card-text fs-2 fw-bold">{{ active_users_approx if active_users_approx is not none else 0 }}</p>
-                            <small class="text-muted">(최근 5분 내 고유 IP 기준)</small>
+                            <small class="text-dark">(최근 5분 내 고유 IP 기준)</small>
                         </div>
                         <i class="bi bi-people-fill fs-1 opacity-50"></i>
                     </div>
