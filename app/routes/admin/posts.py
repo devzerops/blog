@@ -183,7 +183,7 @@ def new_post(current_user):
             post = post_service.create_post(post_data, author_id=author_id)
             
             flash('글이 성공적으로 작성되었습니다.', 'success')
-            return redirect(url_for('admin.admin_posts'))
+            return redirect(url_for('admin.dashboard'))
             
         except Exception as e:
             db.session.rollback()
@@ -371,7 +371,7 @@ def edit_post(current_user, post_id):
                 raise Exception("Failed to update post")
             
             flash('글이 성공적으로 수정되었습니다.', 'success')
-            return redirect(url_for('admin.admin_posts'))
+            return redirect(url_for('admin.dashboard'))
             
         except Exception as e:
             db.session.rollback()
