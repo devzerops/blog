@@ -1,8 +1,12 @@
 modules = ["python-3.12", "web", "bash", "postgresql-16"]
-run = "flask run "
+run = "flask run --host=0.0.0.0 --port=5000"
 
 [nix]
 channel = "stable-24_05"
 
 [deployment]
-run = ["sh", "-c", "flask run "]
+run = ["sh", "-c", "flask run"]
+
+[[ports]]
+localPort = 5000
+externalPort = 80
