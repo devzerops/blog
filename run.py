@@ -75,4 +75,8 @@ def init_db_command():
     print("데이터베이스 설정 완료!")
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    import os
+    # Replit 배포 환경에서는 debug=False로 실행
+    debug_mode = os.environ.get('REPLIT_DEPLOYMENT') != '1'
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)

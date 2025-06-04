@@ -38,7 +38,8 @@ main() {
 
     # 마이그레이션 적용
     echo "🔄 데이터베이스 마이그레이션을 적용합니다..."
-    flask db upgrade
+    # 여러 head가 있는 경우 모든 head로 업그레이드
+    flask db upgrade heads || flask db upgrade
 
     # 애플리케이션 실행
     echo "🚀 애플리케이션을 시작합니다..."
