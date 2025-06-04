@@ -11,10 +11,10 @@
             <h2>게시물 관리 대시보드</h2>
         </div>
         <div class="col-md-6 text-end">
-            <a href="{{ url_for('admin.new_post') }}" class="btn btn-primary">새 글 작성</a>
+            <a href="{{ url_for('admin.new_post') }}?t={{ moment().timestamp }}" class="btn btn-primary">새 글 작성</a>
         </div>
     </div>
-    
+
     <!-- 필터 컨트롤 -->
     <div class="row mb-4">
         <div class="col-12">
@@ -26,7 +26,7 @@
                     <form method="GET" action="{{ request.path }}" class="row g-3" id="filterForm">
                         <!-- Hidden fields to maintain other query parameters -->
                         <input type="hidden" name="page" value="{{ request.args.get('page', '1') }}">
-                        
+
                         <!-- 카테고리 필터 -->
                         <div class="col-md-4">
                             <label for="category_filter" class="form-label">카테고리</label>
@@ -37,7 +37,7 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        
+
                         <!-- 상태 필터 -->
                         <div class="col-md-4">
                             <label for="status_filter" class="form-label">상태</label>
@@ -47,7 +47,7 @@
                                 <option value="draft" {% if selected_status == 'draft' %}selected{% endif %}>임시저장</option>
                             </select>
                         </div>
-                        
+
                         <!-- 필터 초기화 버튼 -->
                         <div class="col-md-4 d-flex align-items-end">
                             <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">필터 초기화</a>
@@ -57,7 +57,7 @@
             </div>
         </div>
     </div>
-    
+
     {% if posts %}
     <div class="table-responsive">
         <table class="table table-striped table-hover">

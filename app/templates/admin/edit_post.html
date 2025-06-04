@@ -564,11 +564,43 @@
         }
     });
     
-    // 폼에 타임스탬프 추가하여 캐시 방지
+    // 캐시 방지 및 페이지 초기화
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('postForm');
         if (form) {
             form.action = window.location.pathname + '?t=' + new Date().getTime();
+        }
+        
+        // 새 글 작성 페이지인 경우 기존 자동저장 데이터 정리
+        const isNewPost = window.location.pathname.includes('/post/new');
+        if (isNewPost) {
+            // 로컬스토리지의 자동저장 데이터 정리
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+                if (key.startsWith('ckeditor-autosave-')) {
+                    localStorage.removeItem(key);
+                }
+            });
+            
+            // 폼 필드 초기화
+            const titleInput = document.querySelector('#title');
+            const tagInput = document.querySelector('#actual-tags-input');
+            const categorySelect = document.querySelector('#category_id');
+            const imageInput = document.querySelector('input[type="file"][name="image"]');
+            
+            if (titleInput) titleInput.value = '';
+            if (tagInput) tagInput.value = '';
+            if (categorySelect) categorySelect.selectedIndex = 0;
+            if (imageInput) imageInput.value = '';
+            
+            // 태그 표시 영역 초기화
+            const tagsDisplay = document.querySelector('#tags-display');
+            if (tagsDisplay) {
+                const tagItems = tagsDisplay.querySelectorAll('.tag-item');
+                tagItems.forEach(item => item.remove());
+            }
+            
+            console.log('새 글 작성 페이지 초기화 완료');
         }
     });
 
@@ -576,6 +608,19 @@
     if (window.performance && performance.navigation.type === 2) {
         window.location.href = window.location.pathname + '?t=' + new Date().getTime();
     }
+    
+    // 페이지 언로드 시 새 글 작성 페이지의 자동저장 데이터 정리
+    window.addEventListener('beforeunload', function() {
+        const isNewPost = window.location.pathname.includes('/post/new');
+        if (isNewPost) {
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+                if (key.startsWith('ckeditor-autosave-new')) {
+                    localStorage.removeItem(key);
+                }
+            });
+        }
+    });
 
     document.addEventListener('DOMContentLoaded', function() {
         const contentElement = document.getElementById('content');
@@ -912,8 +957,16 @@
                         
                         xhr.onload = function() {
                             if (xhr.status >= 200 && xhr.status < 300) {
-                                // 성공 시 페이지 새로고침
-                                window.location.reload();
+                                // 성공 시 로컬스토리지 정리 후 대시보드로 이동
+                                const keys = Object.keys(localStorage);
+                                keys.forEach(key => {
+                                    if (key.startsWith('ckeditor-autosave-')) {
+                                        localStorage.removeItem(key);
+                                    }
+                                });
+                                
+                                // 새로운 URL로 이동 (캐시 방지를 위한 타임스탬프 추가)
+                                window.location.href = '/admin/dashboard?t=' + new Date().getTime();
                             } else {
                                 console.error('서버 오류:', xhr.status, xhr.statusText);
                                 alert('게시글 저장 중 오류가 발생했습니다. 다시 시도해주세요.');
@@ -1235,10 +1288,13 @@
                     saveData(); // 페이지 나가기 전 마지막 저장
                 });
                 
-                // 자동 저장된 내용 복원
-                const savedData = localStorage.getItem('ckeditor-autosave-' + autosaveKey);
-                if (savedData && !editor.getData()) {
-                    editor.setData(savedData);
+                // 자동 저장된 내용 복원 (새 글 작성이 아닌 경우에만)
+                const isNewPost = window.location.pathname.includes('/post/new');
+                if (!isNewPost) {
+                    const savedData = localStorage.getItem('ckeditor-autosave-' + autosaveKey);
+                    if (savedData && !editor.getData()) {
+                        editor.setData(savedData);
+                    }
                 }
                 
                 console.log('CKEditor 초기화 완료');
