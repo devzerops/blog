@@ -104,6 +104,14 @@ class SiteSettingsForm(FlaskForm):
         FileAllowed(['ico', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'], '이미지 파일만 업로드 가능합니다! (ico, png, jpg, svg, webp)')
     ])
     posts_per_page = IntegerField('페이지 당 게시물 수', validators=[Optional(), NumberRange(min=1, max=100)], default=10)
+    # 애드센스 관련 필드
+    google_adsense_publisher_id = StringField('Google AdSense 게시자 ID (예: pub-1234567890123456)', validators=[Optional(), Length(max=50)])
+    google_adsense_auto_ads = BooleanField('자동 광고 활성화', default=False)
+    adsense_header_code = TextAreaField('AdSense 헤더 코드 (자동 광고용)', validators=[Optional(), Length(max=5000)])
+    adsense_sidebar_code = TextAreaField('사이드바 광고 코드', validators=[Optional(), Length(max=5000)])
+    adsense_content_code = TextAreaField('콘텐츠 내 광고 코드', validators=[Optional(), Length(max=5000)])
+    adsense_footer_code = TextAreaField('푸터 광고 코드', validators=[Optional(), Length(max=5000)])
+    
     admin_email = StringField('관리자 이메일', validators=[Optional(), Email(message='유효한 이메일을 입력해주세요.')])
     admin_github_url = StringField('관리자 GitHub URL', validators=[Optional(), URLValidator(), Length(max=255)])
     ad_sense_code = TextAreaField('AdSense 또는 광고 코드', validators=[Optional()])

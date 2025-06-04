@@ -96,7 +96,7 @@ class PageView(db.Model):
 class Media(db.Model):
     """미디어 파일을 저장하는 모델"""
     __tablename__ = 'media'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(255), nullable=False)
     original_filename = db.Column(db.String(255), nullable=False)
@@ -107,7 +107,7 @@ class Media(db.Model):
     alt_text = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<Media {self.original_filename}>'
 
@@ -122,8 +122,17 @@ class SiteSetting(db.Model):
     posts_per_page = db.Column(db.Integer, default=10)
     admin_email = db.Column(db.String(120), nullable=True)
     admin_github_url = db.Column(db.String(255), nullable=True)
-    ad_sense_code = db.Column(db.Text, nullable=True)
-    google_analytics_id = db.Column(db.String(50), nullable=True)
+    ad_sense_code = db.Column(db.Text, nullable=True)  # Store AdSense HTML code
+
+    # 애드센스 관련 필드들
+    google_adsense_publisher_id = db.Column(db.String(50), nullable=True)
+    google_adsense_auto_ads = db.Column(db.Boolean, default=False)
+    adsense_header_code = db.Column(db.Text, nullable=True)
+    adsense_sidebar_code = db.Column(db.Text, nullable=True)
+    adsense_content_code = db.Column(db.Text, nullable=True)
+    adsense_footer_code = db.Column(db.Text, nullable=True)
+
+    # Footer customization
     footer_copyright_text = db.Column(db.String(255), nullable=True, default=" {year} {site_title}. All rights reserved.")
     about_content = db.Column(db.Text, nullable=True)
 

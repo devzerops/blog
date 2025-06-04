@@ -1,4 +1,13 @@
 <footer class="mt-5 py-3 bg-body-tertiary text-center">
+    <!-- 푸터 광고 영역 -->
+    {% if site_settings and site_settings.adsense_footer_code %}
+    <div class="container mb-3">
+        <div class="text-center">
+            {{ site_settings.adsense_footer_code|safe }}
+        </div>
+    </div>
+    {% endif %}
+    
     <p>
         {% if site_settings and site_settings.footer_copyright_text %}
             {{ site_settings.footer_copyright_text.replace('{year}', current_year|string).replace('{site_title}', site_settings.site_title if site_settings.site_title else '내 블로그')|safe }}

@@ -109,6 +109,77 @@
                     {% endif %}
                 </div>
 
+                <!-- Google AdSense 설정 섹션 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>Google AdSense 설정</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.google_adsense_publisher_id.label(class="form-label") }}
+                            {{ form.google_adsense_publisher_id(class="form-control" + (" is-invalid" if form.google_adsense_publisher_id.errors else ""), placeholder="pub-1234567890123456") }}
+                            {% if form.google_adsense_publisher_id.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.google_adsense_publisher_id.errors %}<span>{{ error }}</span>{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">AdSense 계정의 게시자 ID를 입력하세요.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.google_adsense_auto_ads(class="form-check-input" + (" is-invalid" if form.google_adsense_auto_ads.errors else "")) }}
+                                {{ form.google_adsense_auto_ads.label(class="form-check-label") }}
+                            </div>
+                            <div class="form-text">자동 광고를 활성화하면 Google이 자동으로 광고를 배치합니다.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.adsense_header_code.label(class="form-label") }}
+                            {{ form.adsense_header_code(class="form-control" + (" is-invalid" if form.adsense_header_code.errors else ""), rows="5") }}
+                            {% if form.adsense_header_code.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.adsense_header_code.errors %}<span>{{ error }}</span>{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">자동 광고용 헤더 코드를 입력하세요. (script 태그 포함)</div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.adsense_sidebar_code.label(class="form-label") }}
+                            {{ form.adsense_sidebar_code(class="form-control" + (" is-invalid" if form.adsense_sidebar_code.errors else ""), rows="8") }}
+                            {% if form.adsense_sidebar_code.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.adsense_sidebar_code.errors %}<span>{{ error }}</span>{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">사이드바에 표시될 광고 코드를 입력하세요.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.adsense_content_code.label(class="form-label") }}
+                            {{ form.adsense_content_code(class="form-control" + (" is-invalid" if form.adsense_content_code.errors else ""), rows="8") }}
+                            {% if form.adsense_content_code.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.adsense_content_code.errors %}<span>{{ error }}</span>{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">게시글 내용 중간에 표시될 광고 코드를 입력하세요.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.adsense_footer_code.label(class="form-label") }}
+                            {{ form.adsense_footer_code(class="form-control" + (" is-invalid" if form.adsense_footer_code.errors else ""), rows="8") }}
+                            {% if form.adsense_footer_code.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.adsense_footer_code.errors %}<span>{{ error }}</span>{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">푸터 영역에 표시될 광고 코드를 입력하세요.</div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="mb-3">
                     {{ form.ad_sense_code.label(class="form-label") }}
                     {{ form.ad_sense_code(class="form-control" + (" is-invalid" if form.ad_sense_code.errors else ""), rows="5") }}
