@@ -4,7 +4,7 @@ Contains routes for creating, editing, and deleting blog posts.
 """
 
 from datetime import datetime, timezone
-from flask import render_template, redirect, url_for, flash, request, current_app, abort, url_for, make_response
+from flask import render_template, redirect, url_for, flash, request, current_app, abort, url_for
 from werkzeug.exceptions import NotFound, BadRequest
 
 from app import post_service, category_service, db, file_util
@@ -81,29 +81,18 @@ def new_post(current_user):
             post = post_service.create_post(post_data, current_user.id)
             
             flash('글이 성공적으로 작성되었습니다.', 'success')
-            # 캐시 방지를 위한 타임스탬프 추가
-            response = make_response(redirect(url_for('admin.dashboard')))
-            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response.headers['Pragma'] = 'no-cache'
-            response.headers['Expires'] = '0'
-            return response
+            return redirect(url_for('admin.dashboard'))
             
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f'Error creating post: {e}')
             flash('글 작성 중 오류가 발생했습니다. 나중에 다시 시도해주세요.', 'danger')
     
-    # 캐시 방지 헤더 추가
-    response = make_response(render_template('admin/edit_post.html',
+    return render_template('admin/edit_post.html',
                          title='새 글 작성',
                          form=form,
                          current_user=current_user,
-                         current_image_url=None,
-                         post_id=None))
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    return response
+                         current_image_url=None)
 
 
 @bp_admin.route('/post/edit/<int:post_id>', methods=['GET', 'POST'])
@@ -179,12 +168,7 @@ def edit_post(current_user, post_id):
                 raise Exception("Failed to update post")
             
             flash('글이 성공적으로 수정되었습니다.', 'success')
-            # 캐시 방지를 위한 헤더 추가
-            response = make_response(redirect(url_for('admin.dashboard')))
-            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response.headers['Pragma'] = 'no-cache'
-            response.headers['Expires'] = '0'
-            return response
+            return redirect(url_for('admin.dashboard'))
             
         except Exception as e:
             db.session.rollback()
@@ -202,18 +186,12 @@ def edit_post(current_user, post_id):
     if post.thumbnail_filename:
         current_thumbnail_url = url_for('static', filename=f'uploads/thumbnails/{post.thumbnail_filename}')
     
-    # 캐시 방지 헤더 추가
-    response = make_response(render_template('admin/edit_post.html',
+    return render_template('admin/edit_post.html',
                          title='글 수정',
                          form=form,
                          post=post,
                          current_user=current_user,
-                         current_thumbnail_url=current_thumbnail_url,
-                         post_id=post.id))
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    return response
+                         current_thumbnail_url=current_thumbnail_url)
 
 
 @bp_admin.route('/post/delete/<int:post_id>', methods=['POST'])
